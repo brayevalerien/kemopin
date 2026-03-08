@@ -81,8 +81,25 @@
             anchorFill: "#2d2a2e",
             anchorSize: 8,
             rotateEnabled: true,
+            keepRatio: true,
+            rotationSnaps: [0, 90, 180, 270],
+            rotationSnapTolerance: 15,
         });
         layer.add(transformer);
+
+        // Normalize text scale into fontSize/width after transform
+        transformer.on("transformend", function () {
+            var node = transformer.nodes()[0];
+            if (node instanceof Konva.Text) {
+                var newFontSize = Math.round(node.fontSize() * node.scaleY());
+                var newWidth = node.width() * node.scaleX();
+                node.fontSize(newFontSize);
+                node.width(newWidth);
+                node.scaleX(1);
+                node.scaleY(1);
+                layer.batchDraw();
+            }
+        });
 
         if (boardData.canvas) {
             stage.position({
@@ -132,14 +149,15 @@
             createTextNode(pointer.x, pointer.y, "", 16);
         });
 
-        // Delete selected element
         window.addEventListener("keydown", function (event) {
-            if (event.key === "Delete" || event.key === "Backspace") {
-                // Do not delete if editing text
-                if (document.activeElement.tagName === "TEXTAREA") return;
-                if (document.activeElement.tagName === "INPUT") return;
+            if (document.activeElement.tagName === "TEXTAREA") return;
+            if (document.activeElement.tagName === "INPUT") return;
 
-                const nodes = transformer.nodes();
+            var nodes = transformer.nodes();
+            var selectedNode = nodes.length > 0 ? nodes[0] : null;
+
+            // Delete selected element
+            if (event.key === "Delete" || event.key === "Backspace") {
                 if (nodes.length > 0) {
                     nodes.forEach(function (node) {
                         node.destroy();
@@ -147,6 +165,28 @@
                     transformer.nodes([]);
                     layer.batchDraw();
                 }
+                return;
+            }
+
+            // Text color cycling with C key
+            if (event.key === "c" && selectedNode instanceof Konva.Text) {
+                var currentColor = selectedNode.fill();
+                var colorIndex = TEXT_COLORS.indexOf(currentColor);
+                var nextIndex = (colorIndex + 1) % TEXT_COLORS.length;
+                selectedNode.fill(TEXT_COLORS[nextIndex]);
+                layer.batchDraw();
+                return;
+            }
+
+            // Text alignment cycling with A key
+            if (event.key === "a" && selectedNode instanceof Konva.Text) {
+                var currentAlign = selectedNode.align();
+                var aligns = ["left", "center", "right"];
+                var alignIndex = aligns.indexOf(currentAlign);
+                var nextAlign = aligns[(alignIndex + 1) % aligns.length];
+                selectedNode.align(nextAlign);
+                layer.batchDraw();
+                return;
             }
         });
 
@@ -161,18 +201,44 @@
             }
         });
 
-        // Drag and drop files
-        container.addEventListener("dragover", function (event) {
+        // Drag and drop files (capture phase to beat Konva)
+        var stageContent = stage.container();
+        stageContent.addEventListener("dragover", function (event) {
             event.preventDefault();
-        });
+        }, true);
 
-        container.addEventListener("drop", function (event) {
+        stageContent.addEventListener("dragenter", function (event) {
             event.preventDefault();
-            const files = event.dataTransfer.files;
-            for (let i = 0; i < files.length; i++) {
-                if (files[i].type.indexOf("image") !== -1) {
-                    uploadAndAddImage(files[i]);
+        }, true);
+
+        stageContent.addEventListener("drop", function (event) {
+            event.preventDefault();
+            var files = event.dataTransfer.files;
+            if (files.length > 0) {
+                for (var i = 0; i < files.length; i++) {
+                    if (files[i].type.indexOf("image") !== -1) {
+                        uploadAndAddImage(files[i]);
+                    }
                 }
+            } else {
+                // Handle URIs from editors like VSCode
+                var uriList = event.dataTransfer.getData("text/uri-list");
+                if (uriList) {
+                    uriList.split("\n").forEach(function (uri) {
+                        uri = uri.trim();
+                        if (uri && !uri.startsWith("#")) {
+                            fetchAndUploadFromUrl(uri);
+                        }
+                    });
+                }
+            }
+        }, true);
+
+        // Middle click opens file picker
+        container.addEventListener("mousedown", function (event) {
+            if (event.button === 1) {
+                event.preventDefault();
+                openFilePicker();
             }
         });
 
@@ -198,7 +264,9 @@
                     element.fontSize || 16,
                     element.id,
                     element.width,
-                    element.rotation
+                    element.rotation,
+                    element.fill || "#f8f8f2",
+                    element.align || "left"
                 );
             }
         });
@@ -221,10 +289,36 @@
             node.setAttr("src", element.src);
             makeSelectable(node);
             layer.add(node);
-            transformer.moveToTop();
+            reorderElements();
             layer.batchDraw();
         };
         imageObject.src = element.src;
+    }
+
+    function openFilePicker() {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "image/*";
+        input.multiple = true;
+        input.addEventListener("change", function () {
+            for (let i = 0; i < input.files.length; i++) {
+                uploadAndAddImage(input.files[i]);
+            }
+        });
+        input.click();
+    }
+
+    async function fetchAndUploadFromUrl(url) {
+        try {
+            var response = await fetch(url);
+            if (!response.ok) return;
+            var blob = await response.blob();
+            if (!blob.type.startsWith("image/")) return;
+            var file = new File([blob], "dropped.jpg", { type: blob.type });
+            uploadAndAddImage(file);
+        } catch (error) {
+            // Silently ignore fetch failures (CORS, etc.)
+        }
     }
 
     // Upload image to server and add to canvas
@@ -246,18 +340,26 @@
         const result = await response.json();
         const imageObject = new Image();
         imageObject.onload = function () {
-            const pointer = stage.getRelativePointerPosition() || {
-                x: stage.width() / 2 / stage.scaleX() - stage.x() / stage.scaleX(),
-                y: stage.height() / 2 / stage.scaleY() - stage.y() / stage.scaleY(),
-            };
+            const viewWidth = stage.width() / stage.scaleX();
+            const viewHeight = stage.height() / stage.scaleY();
+            const maxWidth = viewWidth * 0.8;
+            const maxHeight = viewHeight * 0.8;
+            const naturalWidth = imageObject.naturalWidth;
+            const naturalHeight = imageObject.naturalHeight;
+            const scale = Math.min(1, maxWidth / naturalWidth, maxHeight / naturalHeight);
+            const displayWidth = naturalWidth * scale;
+            const displayHeight = naturalHeight * scale;
+
+            const centerX = -stage.x() / stage.scaleX() + viewWidth / 2 - displayWidth / 2;
+            const centerY = -stage.y() / stage.scaleY() + viewHeight / 2 - displayHeight / 2;
 
             const node = new Konva.Image({
                 id: generateId(),
-                x: pointer.x,
-                y: pointer.y,
+                x: centerX,
+                y: centerY,
                 image: imageObject,
-                width: imageObject.naturalWidth,
-                height: imageObject.naturalHeight,
+                width: displayWidth,
+                height: displayHeight,
                 draggable: true,
             });
 
@@ -265,7 +367,7 @@
             makeSelectable(node);
             layer.add(node);
             transformer.nodes([node]);
-            transformer.moveToTop();
+            reorderElements();
             layer.batchDraw();
             updateBoardSize();
         };
@@ -273,6 +375,18 @@
     }
 
     // Text nodes
+    // Monokai color palette for text
+    const TEXT_COLORS = [
+        "#f8f8f2",
+        "#ae81ff",
+        "#a6e22e",
+        "#f92672",
+        "#66d9ef",
+        "#e6db74",
+        "#fd971f",
+        "#272822",
+    ];
+
     function createTextNode(
         x,
         y,
@@ -280,7 +394,9 @@
         fontSize,
         id,
         width,
-        rotation
+        rotation,
+        fill,
+        align
     ) {
         const textNode = new Konva.Text({
             id: id || generateId(),
@@ -288,7 +404,8 @@
             y: y,
             text: content || "Double click to edit",
             fontSize: fontSize || 16,
-            fill: "#f8f8f2",
+            fill: fill || "#f8f8f2",
+            align: align || "left",
             width: width || 200,
             rotation: rotation || 0,
             draggable: true,
@@ -302,7 +419,7 @@
         });
 
         layer.add(textNode);
-        transformer.moveToTop();
+        reorderElements();
         layer.batchDraw();
 
         // Start editing immediately if new empty node
@@ -362,6 +479,20 @@
         }
     }
 
+    // Keep text above images, transformer always on top
+    function reorderElements() {
+        var texts = [];
+        layer.children.forEach(function (node) {
+            if (node instanceof Konva.Text) {
+                texts.push(node);
+            }
+        });
+        texts.forEach(function (node) {
+            node.moveToTop();
+        });
+        transformer.moveToTop();
+    }
+
     // Make a node selectable via transformer
     function makeSelectable(node) {
         node.on("click tap", function (event) {
@@ -398,7 +529,9 @@
                     width: node.width() * node.scaleX(),
                     rotation: node.rotation(),
                     content: node.text(),
-                    fontSize: node.fontSize(),
+                    fontSize: Math.round(node.fontSize() * node.scaleY()),
+                    fill: node.fill(),
+                    align: node.align(),
                 });
             }
         });
