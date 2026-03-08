@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kemopin</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="board-ui">
+        <div id="toolbar">
+            <button id="save-button">Save</button>
+            <span id="board-size"></span>
+        </div>
+        <div id="canvas-container"></div>
+    </div>
+
+    <div id="create-form" style="display: none;">
+        <div class="form-box">
+            <h1>Board not found</h1>
+            <p>Create <strong id="form-slug"></strong>?</p>
+            <input type="password" id="password-input" placeholder="Admin password" autocomplete="off">
+            <button id="create-button">Create</button>
+            <p id="form-error"></p>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
