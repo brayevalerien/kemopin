@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from slowapi import Limiter
@@ -112,3 +112,8 @@ async def get_asset(slug: str, filename: str) -> FileResponse:
     if path is None:
         raise HTTPException(status_code=404, detail="Asset not found")
     return FileResponse(path)
+
+
+@app.get("/{slug}", response_class=RedirectResponse)
+async def redirect_to_board(slug: str) -> RedirectResponse:
+    return RedirectResponse(url=f"/b/{slug}", status_code=301)
