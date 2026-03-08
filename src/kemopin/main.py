@@ -95,6 +95,17 @@ async def upload_asset(slug: str, request: Request, file: UploadFile) -> dict[st
     return {"url": f"/api/boards/{slug}/assets/{filename}"}
 
 
+@app.get("/api/boards/{slug}/size")
+async def get_board_size(slug: str) -> dict[str, Any]:
+    if not storage.board_exists(slug):
+        raise HTTPException(status_code=404, detail="Board not found")
+    size_bytes = storage.get_board_size_bytes(slug)
+    return {
+        "size_bytes": size_bytes,
+        "max_bytes": config.MAX_BOARD_SIZE_MB * 1024 * 1024,
+    }
+
+
 @app.get("/api/boards/{slug}/assets/{filename}")
 async def get_asset(slug: str, filename: str) -> FileResponse:
     path = storage.get_asset_path(slug, filename)
