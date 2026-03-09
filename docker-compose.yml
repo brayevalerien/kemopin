@@ -1,0 +1,12 @@
+services:
+  kemopin:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - kemopin_data:/data
+
+volumes:
+  kemopin_data:
