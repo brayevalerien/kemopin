@@ -78,7 +78,7 @@ async def save_board(slug: str, body: dict[str, Any]) -> dict[str, str]:
 
 
 @app.post("/api/boards/{slug}/assets")
-@limiter.limit("10/minute")
+@limiter.limit(config.UPLOAD_RATE_LIMIT)
 async def upload_asset(slug: str, request: Request, file: UploadFile) -> dict[str, str]:
     if not storage.board_exists(slug):
         raise HTTPException(status_code=404, detail="Board not found")
