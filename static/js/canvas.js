@@ -2,7 +2,7 @@ import { state } from "./state.js";
 import { TEXT_COLORS } from "./constants.js";
 import { serializeElement } from "./serialize.js";
 import { pushHistory, undo, redo } from "./history.js";
-import { createTextNode, duplicateFrom, fitToView } from "./elements.js";
+import { createTextNode, duplicateFrom, fitToView, reorderElements } from "./elements.js";
 import { openFilePicker, uploadAndAddImage, fetchAndUploadFromUrl } from "./upload.js";
 
 export function setupCanvas() {
@@ -178,6 +178,21 @@ function setupKeyboard() {
                 state.layer.batchDraw();
                 pushHistory();
             }
+            return;
+        }
+
+        if (e.key === "[" && selected instanceof Konva.Image) {
+            selected.moveDown();
+            reorderElements();
+            state.layer.batchDraw();
+            pushHistory();
+            return;
+        }
+        if (e.key === "]" && selected instanceof Konva.Image) {
+            selected.moveUp();
+            reorderElements();
+            state.layer.batchDraw();
+            pushHistory();
             return;
         }
 
