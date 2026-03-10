@@ -16,15 +16,93 @@
     let stage, layer, transformer;
     let boardData = null;
 
+    // Undo/redo
+    var history = [];
+    var historyIndex = -1;
+    var isRestoring = false;
+    var MAX_HISTORY = 50;
+
+    function captureSnapshot() {
+        var elements = [];
+        layer.children.forEach(function (node) {
+            if (node === transformer) return;
+            if (node instanceof Konva.Image) {
+                elements.push({
+                    id: node.id(), type: "image",
+                    x: node.x(), y: node.y(),
+                    width: node.width() * node.scaleX(),
+                    height: node.height() * node.scaleY(),
+                    rotation: node.rotation(),
+                    src: node.getAttr("src"),
+                });
+            } else if (node instanceof Konva.Text) {
+                elements.push({
+                    id: node.id(), type: "text",
+                    x: node.x(), y: node.y(),
+                    width: node.width() * node.scaleX(),
+                    rotation: node.rotation(),
+                    content: node.text(),
+                    fontSize: Math.round(node.fontSize() * node.scaleY()),
+                    fill: node.fill(), align: node.align(),
+                });
+            }
+        });
+        return elements;
+    }
+
+    function pushHistory() {
+        if (isRestoring) return;
+        history = history.slice(0, historyIndex + 1);
+        history.push(captureSnapshot());
+        if (history.length > MAX_HISTORY) history.shift();
+        else historyIndex++;
+    }
+
+    function restoreSnapshot(snapshot) {
+        isRestoring = true;
+        layer.children.slice().forEach(function (node) {
+            if (node !== transformer) node.destroy();
+        });
+        transformer.nodes([]);
+        snapshot.forEach(function (element) {
+            if (element.type === "image") loadImageElement(element);
+            else if (element.type === "text") createTextNode(element.x, element.y, element.content, element.fontSize, element.id, element.width, element.rotation, element.fill, element.align);
+        });
+        reorderElements();
+        layer.batchDraw();
+        isRestoring = false;
+    }
+
+    function undo() {
+        if (historyIndex <= 0) return;
+        historyIndex--;
+        restoreSnapshot(history[historyIndex]);
+    }
+
+    function redo() {
+        if (historyIndex >= history.length - 1) return;
+        historyIndex++;
+        restoreSnapshot(history[historyIndex]);
+    }
+
     // Fetch board or show creation form
     async function init() {
-        const response = await fetch(`/api/boards/${slug}`);
-        if (response.ok) {
-            boardData = await response.json();
+        const [boardRes, configRes] = await Promise.all([
+            fetch(`/api/boards/${slug}`),
+            fetch("/api/config"),
+        ]);
+        if (configRes.ok) {
+            const cfg = await configRes.json();
+            if (cfg.max_history) MAX_HISTORY = cfg.max_history;
+        }
+        if (boardRes.ok) {
+            boardData = await boardRes.json();
             boardUi.style.display = "";
             createForm.style.display = "none";
             setupCanvas();
             loadElements();
+            history = [JSON.parse(JSON.stringify(boardData.elements || []))];
+            historyIndex = 0;
             updateBoardSize();
         } else {
             boardUi.style.display = "none";
@@ -99,6 +177,7 @@
                 node.scaleY(1);
                 layer.batchDraw();
             }
+            pushHistory();
         });
 
         if (boardData.canvas) {
@@ -156,6 +235,16 @@
             var nodes = transformer.nodes();
             var selectedNode = nodes.length > 0 ? nodes[0] : null;
 
+            // Undo/redo
+            if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+                event.shiftKey ? redo() : undo();
+                return;
+            }
+            if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+                redo();
+                return;
+            }
+
             // Delete selected element
             if (event.key === "Delete" || event.key === "Backspace") {
                 if (nodes.length > 0) {
@@ -164,6 +253,7 @@
                     });
                     transformer.nodes([]);
                     layer.batchDraw();
+                    pushHistory();
                 }
                 return;
             }
@@ -181,6 +271,7 @@
                 var nextIndex = (colorIndex + 1) % TEXT_COLORS.length;
                 selectedNode.fill(TEXT_COLORS[nextIndex]);
                 layer.batchDraw();
+                pushHistory();
                 return;
             }
 
@@ -192,6 +283,7 @@
                 var nextAlign = aligns[(alignIndex + 1) % aligns.length];
                 selectedNode.align(nextAlign);
                 layer.batchDraw();
+                pushHistory();
                 return;
             }
         });
@@ -297,9 +389,10 @@
         });
     }
 
+    var imageCache = {};
+
     function loadImageElement(element) {
-        const imageObject = new Image();
-        imageObject.onload = function () {
+        function addNode(imageObject) {
             const node = new Konva.Image({
                 id: element.id,
                 x: element.x,
@@ -310,14 +403,25 @@
                 rotation: element.rotation || 0,
                 draggable: true,
             });
-
             node.setAttr("src", element.src);
             makeSelectable(node);
             layer.add(node);
-            reorderElements();
-            layer.batchDraw();
-        };
-        imageObject.src = element.src;
+            if (!isRestoring) {
+                reorderElements();
+                layer.batchDraw();
+            }
+        }
+
+        if (imageCache[element.src]) {
+            addNode(imageCache[element.src]);
+        } else {
+            const imageObject = new Image();
+            imageObject.onload = function () {
+                imageCache[element.src] = imageObject;
+                addNode(imageObject);
+            };
+            imageObject.src = element.src;
+        }
     }
 
     function openFilePicker() {
@@ -394,6 +498,7 @@
             transformer.nodes([node]);
             reorderElements();
             layer.batchDraw();
+            pushHistory();
             updateBoardSize();
         };
         imageObject.src = result.url;
@@ -444,11 +549,13 @@
         });
 
         layer.add(textNode);
-        reorderElements();
-        layer.batchDraw();
+        if (!isRestoring) {
+            reorderElements();
+            layer.batchDraw();
+        }
 
         // Start editing immediately if new empty node
-        if (!content) {
+        if (!content && !isRestoring) {
             editTextNode(textNode);
         }
 
@@ -501,6 +608,7 @@
             textNode.show();
             textarea.remove();
             layer.batchDraw();
+            pushHistory();
         }
     }
 
@@ -525,6 +633,7 @@
             transformer.nodes([node]);
             layer.batchDraw();
         });
+        node.on("dragend", pushHistory);
     }
 
     // Save board state

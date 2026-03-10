@@ -97,5 +97,6 @@ All configuration is done via environment variables (or a `.env` file):
 | `DATA_DIR`          | `./data`  | Directory where board data and assets are stored |
 | `MAX_FILE_SIZE_MB`  | `5`       | Maximum size per uploaded image                  |
 | `MAX_BOARD_SIZE_MB` | `100`     | Maximum total size per board                     |
+| `MAX_HISTORY`       | `50`      | Undo/redo history steps per session              |
 | `HOST`              | `0.0.0.0` | Host to bind to                                  |
 | `PORT`              | `8000`    | Port to listen on                                |

@@ -29,6 +29,13 @@ async def rate_limit_handler(request: Request, exception: RateLimitExceeded) -> 
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
 
 
+@app.get("/api/config")
+async def get_config() -> dict[str, Any]:
+    return {
+        "max_history": config.MAX_HISTORY,
+    }
+
+
 @app.get("/b/{slug}", response_class=HTMLResponse)
 async def serve_board(slug: str) -> HTMLResponse:
     html_path = STATIC_DIR / "index.html"
