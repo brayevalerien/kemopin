@@ -24,6 +24,16 @@ STATIC_DIR = Path(__file__).resolve().parent.parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
+NOT_FOUND_HTML = (STATIC_DIR / "404.html").read_text()
+
+
+@app.exception_handler(404)
+async def not_found_handler(request: Request, exc: HTTPException) -> HTMLResponse | JSONResponse:
+    if request.url.path.startswith("/api/"):
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    return HTMLResponse(NOT_FOUND_HTML, status_code=404)
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exception: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
