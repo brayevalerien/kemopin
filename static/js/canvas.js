@@ -131,10 +131,17 @@ function setupDragDrop() {
 function setupPaste() {
     window.addEventListener("paste", function (e) {
         var items = e.clipboardData.items;
+        var hasImage = false;
         for (var i = 0; i < items.length; i++) {
             if (items[i].type.startsWith("image/")) {
+                hasImage = true;
                 uploadAndAddImage(items[i].getAsFile());
             }
+        }
+        // No OS image — use internal canvas clipboard if available
+        if (!hasImage && state.clipboard) {
+            state.pasteCount++;
+            duplicateFrom(state.clipboard, state.pasteCount * 20, state.pasteCount * 20);
         }
     });
 }
@@ -156,12 +163,6 @@ function setupKeyboard() {
         if (ctrl && e.key === "c" && selected) {
             state.clipboard  = serializeElement(selected);
             state.pasteCount = 0;
-            return;
-        }
-        if (ctrl && e.key === "v" && state.clipboard) {
-            e.preventDefault();
-            state.pasteCount++;
-            duplicateFrom(state.clipboard, state.pasteCount * 20, state.pasteCount * 20);
             return;
         }
         if (ctrl && e.key === "d" && selected) {
