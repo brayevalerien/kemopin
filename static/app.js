@@ -641,7 +641,7 @@
     // Save board state
     var dirty = false;
     var autosaveTimer = null;
-    var AUTOSAVE_DELAY = 3000;
+    var AUTOSAVE_DELAY = 30000;
 
     function markDirty() {
         dirty = true;
