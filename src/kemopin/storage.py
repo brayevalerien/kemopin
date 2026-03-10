@@ -60,6 +60,21 @@ def store_asset(slug: str, data: bytes, extension: str) -> str:
     return filename
 
 
+def delete_orphaned_assets(slug: str, old_board: dict[str, Any], new_board: dict[str, Any]) -> None:
+    def asset_filenames(board: dict[str, Any]) -> set[str]:
+        result = set()
+        for element in board.get("elements", []):
+            if element.get("type") == "image" and "src" in element:
+                result.add(Path(element["src"]).name)
+        return result
+
+    removed = asset_filenames(old_board) - asset_filenames(new_board)
+    for filename in removed:
+        path = assets_directory(slug) / filename
+        if path.is_file():
+            path.unlink()
+
+
 def get_asset_path(slug: str, filename: str) -> Path | None:
     path = assets_directory(slug) / filename
     if path.is_file():
