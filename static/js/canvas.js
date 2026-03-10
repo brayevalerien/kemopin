@@ -167,7 +167,7 @@ function setupKeyboard() {
         }
         if (ctrl && e.key === "d" && selected) {
             e.preventDefault();
-            duplicateFrom(serializeElement(selected), 20, 20);
+            if (!e.repeat) duplicateFrom(serializeElement(selected), 20, 20);
             return;
         }
 
