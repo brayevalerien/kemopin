@@ -35,6 +35,7 @@
             { key: "Del",    desc: "delete selected" },
             { key: "Ctrl Z", desc: "undo" },
             { key: "Ctrl Y", desc: "redo" },
+            { key: "F",      desc: "fit all in view" },
             { key: "H",      desc: "shortcuts" },
         ],
     ];
@@ -299,7 +300,13 @@
                 return;
             }
 
-            // ? key toggles shortcuts overlay
+            // F key fits all elements in view
+            if (event.key === "f") {
+                fitToView();
+                return;
+            }
+
+            // H key toggles shortcuts overlay
             if (event.key === "h") {
                 shortcutsOverlay.classList.toggle("visible");
                 return;
@@ -663,6 +670,43 @@
             layer.batchDraw();
             pushHistory();
         }
+    }
+
+    // Fit all elements in the viewport
+    function fitToView() {
+        var nodes = [];
+        layer.children.forEach(function (node) {
+            if (node !== transformer) nodes.push(node);
+        });
+
+        if (nodes.length === 0) {
+            stage.position({ x: 0, y: 0 });
+            stage.scale({ x: 1, y: 1 });
+            return;
+        }
+
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        nodes.forEach(function (node) {
+            var rect = node.getClientRect({ relativeTo: layer });
+            minX = Math.min(minX, rect.x);
+            minY = Math.min(minY, rect.y);
+            maxX = Math.max(maxX, rect.x + rect.width);
+            maxY = Math.max(maxY, rect.y + rect.height);
+        });
+
+        var padding = 48;
+        var scale = Math.min(
+            (stage.width() - padding * 2) / (maxX - minX),
+            (stage.height() - padding * 2) / (maxY - minY),
+            3
+        );
+        var centerX = (minX + maxX) / 2;
+        var centerY = (minY + maxY) / 2;
+        stage.scale({ x: scale, y: scale });
+        stage.position({
+            x: stage.width() / 2 - centerX * scale,
+            y: stage.height() / 2 - centerY * scale,
+        });
     }
 
     // Keep text above images, transformer always on top
