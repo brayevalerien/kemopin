@@ -130,18 +130,18 @@ function setupDragDrop() {
 
 function setupPaste() {
     window.addEventListener("paste", function (e) {
-        var items = e.clipboardData.items;
-        var hasImage = false;
-        for (var i = 0; i < items.length; i++) {
-            if (items[i].type.startsWith("image/")) {
-                hasImage = true;
-                uploadAndAddImage(items[i].getAsFile());
-            }
-        }
-        // No OS image — use internal canvas clipboard if available
-        if (!hasImage && state.clipboard) {
+        // Internal canvas clipboard takes priority over OS clipboard
+        if (state.clipboard) {
             state.pasteCount++;
             duplicateFrom(state.clipboard, state.pasteCount * 20, state.pasteCount * 20);
+            return;
+        }
+        // No internal clipboard — fall back to OS clipboard image if present
+        var items = e.clipboardData.items;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type.startsWith("image/")) {
+                uploadAndAddImage(items[i].getAsFile());
+            }
         }
     });
 }
