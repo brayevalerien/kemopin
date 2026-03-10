@@ -346,7 +346,7 @@
             const maxHeight = viewHeight * 0.8;
             const naturalWidth = imageObject.naturalWidth;
             const naturalHeight = imageObject.naturalHeight;
-            const scale = Math.min(1, maxWidth / naturalWidth, maxHeight / naturalHeight);
+            const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight);
             const displayWidth = naturalWidth * scale;
             const displayHeight = naturalHeight * scale;
 
