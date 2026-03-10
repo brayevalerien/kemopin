@@ -91,15 +91,16 @@ async def upload_asset(slug: str, request: Request, file: UploadFile) -> dict[st
             detail=f"File exceeds {config.MAX_FILE_SIZE_MB}MB limit",
         )
 
+    processed, extension = process_image(data)
+
     board_size = storage.get_board_size_bytes(slug)
     max_board_bytes = config.MAX_BOARD_SIZE_MB * 1024 * 1024
-    if board_size + len(data) > max_board_bytes:
+    if board_size + len(processed) > max_board_bytes:
         raise HTTPException(
             status_code=413,
             detail=f"Board exceeds {config.MAX_BOARD_SIZE_MB}MB limit",
         )
 
-    processed, extension = process_image(data)
     filename = storage.store_asset(slug, processed, extension)
 
     return {"url": f"/api/boards/{slug}/assets/{filename}"}
