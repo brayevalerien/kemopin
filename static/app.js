@@ -22,12 +22,14 @@
     // Shortcuts data — edit here to keep overlay in sync
     var SHORTCUTS = [
         [
-            { key: "double-click", desc: "add text" },
-            { key: "O",            desc: "upload image" },
-            { key: "paste",        desc: "add image" },
-            { key: "drag & drop",  desc: "add image" },
-            { key: "scroll",       desc: "zoom" },
-            { key: "middle drag",  desc: "pan" },
+            { key: "double-click",  desc: "add text" },
+            { key: "O",             desc: "upload image" },
+            { key: "paste",         desc: "add image" },
+            { key: "drag & drop",   desc: "add image" },
+            { key: "scroll",        desc: "zoom" },
+            { key: "middle drag",   desc: "pan" },
+            { key: "Alt + drag",    desc: "free placement" },
+            { key: "Alt + rotate",  desc: "free rotation" },
         ],
         [
             { key: "C",      desc: "cycle text color" },
@@ -56,6 +58,10 @@
 
     let stage, layer, transformer;
     let boardData = null;
+
+    // Snap grid
+    var GRID_SIZE = 20;
+    var altPressed = false;
 
     // Undo/redo
     var history = [];
@@ -420,6 +426,21 @@
             }
         });
 
+        // Alt key toggles free placement / free rotation
+        window.addEventListener("keydown", function (e) {
+            if (e.key === "Alt") {
+                e.preventDefault();
+                altPressed = true;
+                transformer.rotationSnaps([]);
+            }
+        });
+        window.addEventListener("keyup", function (e) {
+            if (e.key === "Alt") {
+                altPressed = false;
+                transformer.rotationSnaps([0, 90, 180, 270]);
+            }
+        });
+
         // Resize stage on window resize
         window.addEventListener("resize", function () {
             stage.width(window.innerWidth);
@@ -731,7 +752,16 @@
             transformer.nodes([node]);
             layer.batchDraw();
         });
-        node.on("dragend", pushHistory);
+        node.on("dragend", function () {
+            if (!altPressed) {
+                node.position({
+                    x: Math.round(node.x() / GRID_SIZE) * GRID_SIZE,
+                    y: Math.round(node.y() / GRID_SIZE) * GRID_SIZE,
+                });
+                layer.batchDraw();
+            }
+            pushHistory();
+        });
     }
 
     // Save board state
