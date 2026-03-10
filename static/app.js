@@ -11,6 +11,7 @@
     const createButton = document.getElementById("create-button");
     const formError = document.getElementById("form-error");
     const saveButton = document.getElementById("save-button");
+    const saveIndicator = document.getElementById("save-indicator");
     const boardSizeLabel = document.getElementById("board-size");
 
     let stage, layer, transformer;
@@ -56,6 +57,7 @@
         history.push(captureSnapshot());
         if (history.length > MAX_HISTORY) history.shift();
         else historyIndex++;
+        markDirty();
     }
 
     function restoreSnapshot(snapshot) {
@@ -637,18 +639,29 @@
     }
 
     // Save board state
-    saveButton.addEventListener("click", async function () {
-        const elements = [];
+    var dirty = false;
+    var autosaveTimer = null;
+    var AUTOSAVE_DELAY = 3000;
 
+    function markDirty() {
+        dirty = true;
+        saveIndicator.className = "unsaved";
+        clearTimeout(autosaveTimer);
+        autosaveTimer = setTimeout(performSave, AUTOSAVE_DELAY);
+    }
+
+    async function performSave() {
+        if (!dirty) return;
+        clearTimeout(autosaveTimer);
+        saveIndicator.className = "saving";
+
+        const elements = [];
         layer.children.forEach(function (node) {
             if (node === transformer) return;
-
             if (node instanceof Konva.Image) {
                 elements.push({
-                    id: node.id(),
-                    type: "image",
-                    x: node.x(),
-                    y: node.y(),
+                    id: node.id(), type: "image",
+                    x: node.x(), y: node.y(),
                     width: node.width() * node.scaleX(),
                     height: node.height() * node.scaleY(),
                     rotation: node.rotation(),
@@ -656,28 +669,20 @@
                 });
             } else if (node instanceof Konva.Text) {
                 elements.push({
-                    id: node.id(),
-                    type: "text",
-                    x: node.x(),
-                    y: node.y(),
+                    id: node.id(), type: "text",
+                    x: node.x(), y: node.y(),
                     width: node.width() * node.scaleX(),
                     rotation: node.rotation(),
                     content: node.text(),
                     fontSize: Math.round(node.fontSize() * node.scaleY()),
-                    fill: node.fill(),
-                    align: node.align(),
+                    fill: node.fill(), align: node.align(),
                 });
             }
         });
 
         const payload = {
             slug: slug,
-            canvas: {
-                x: stage.x(),
-                y: stage.y(),
-                scaleX: stage.scaleX(),
-                scaleY: stage.scaleY(),
-            },
+            canvas: { x: stage.x(), y: stage.y(), scaleX: stage.scaleX(), scaleY: stage.scaleY() },
             elements: elements,
         };
 
@@ -688,17 +693,17 @@
         });
 
         if (response.ok) {
-            saveButton.textContent = "Saved";
-            setTimeout(function () {
-                saveButton.textContent = "Save";
-            }, 1500);
+            dirty = false;
+            saveIndicator.className = "";
         } else {
-            saveButton.textContent = "Error";
-            setTimeout(function () {
-                saveButton.textContent = "Save";
-            }, 1500);
+            saveIndicator.className = "unsaved";
+            toast("error", "Save failed");
         }
-    });
+    }
+
+    saveButton.addEventListener("click", performSave);
+
+    setInterval(function () { if (dirty) performSave(); }, 30000);
 
     // Board size indicator
     async function updateBoardSize() {
