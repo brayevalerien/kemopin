@@ -168,6 +168,12 @@
                 return;
             }
 
+            // O key opens file picker
+            if (event.key === "o") {
+                openFilePicker();
+                return;
+            }
+
             // Text color cycling with C key
             if (event.key === "c" && selectedNode instanceof Konva.Text) {
                 var currentColor = selectedNode.fill();
@@ -234,11 +240,30 @@
             }
         }, true);
 
-        // Middle click opens file picker
+        // Middle click pans the canvas
+        var midPanning = false;
+        var midLastPos = null;
+
         container.addEventListener("mousedown", function (event) {
             if (event.button === 1) {
                 event.preventDefault();
-                openFilePicker();
+                midPanning = true;
+                midLastPos = { x: event.clientX, y: event.clientY };
+            }
+        });
+
+        window.addEventListener("mousemove", function (event) {
+            if (!midPanning) return;
+            var dx = event.clientX - midLastPos.x;
+            var dy = event.clientY - midLastPos.y;
+            stage.position({ x: stage.x() + dx, y: stage.y() + dy });
+            midLastPos = { x: event.clientX, y: event.clientY };
+        });
+
+        window.addEventListener("mouseup", function (event) {
+            if (event.button === 1) {
+                midPanning = false;
+                midLastPos = null;
             }
         });
 

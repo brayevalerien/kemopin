@@ -9,7 +9,7 @@ Navigate to `/b/your-board-name`. If the board doesn't exist yet, you'll be prom
 **Canvas controls:**
 
 - double-click: add text
-- middle click: upload image
+- middle click / `O`: upload image
 - paste / drag & drop: add image
 - `C`: change color
 - `A`: align
