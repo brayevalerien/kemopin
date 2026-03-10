@@ -30,11 +30,14 @@
             { key: "middle drag",   desc: "pan" },
             { key: "Alt + drag",    desc: "free placement" },
             { key: "Alt + rotate",  desc: "free rotation" },
+            { key: "Del",           desc: "delete selected" },
         ],
         [
             { key: "C",      desc: "cycle text color" },
             { key: "A",      desc: "cycle text align" },
-            { key: "Del",    desc: "delete selected" },
+            { key: "Ctrl C", desc: "copy selected" },
+            { key: "Ctrl V", desc: "paste" },
+            { key: "Ctrl D", desc: "duplicate" },
             { key: "Ctrl Z", desc: "undo" },
             { key: "Ctrl Y", desc: "redo" },
             { key: "F",      desc: "fit all in view" },
@@ -62,6 +65,10 @@
     // Snap grid
     var GRID_SIZE = 20;
     var altPressed = false;
+
+    // Internal clipboard for canvas elements
+    var clipboard = null;
+    var pasteCount = 0;
 
     // Undo/redo
     var history = [];
@@ -325,6 +332,38 @@
                 return;
             }
 
+            // Ctrl+C — copy selected element to internal clipboard
+            if ((event.ctrlKey || event.metaKey) && event.key === "c" && selectedNode) {
+                if (selectedNode instanceof Konva.Image) {
+                    clipboard = { type: "image", src: selectedNode.getAttr("src"), x: selectedNode.x(), y: selectedNode.y(), width: selectedNode.width() * selectedNode.scaleX(), height: selectedNode.height() * selectedNode.scaleY(), rotation: selectedNode.rotation() };
+                } else if (selectedNode instanceof Konva.Text) {
+                    clipboard = { type: "text", x: selectedNode.x(), y: selectedNode.y(), content: selectedNode.text(), fontSize: selectedNode.fontSize(), width: selectedNode.width(), rotation: selectedNode.rotation(), fill: selectedNode.fill(), align: selectedNode.align() };
+                }
+                pasteCount = 0;
+                return;
+            }
+
+            // Ctrl+V — paste from internal clipboard (falls through to paste event if no clipboard)
+            if ((event.ctrlKey || event.metaKey) && event.key === "v" && clipboard) {
+                event.preventDefault();
+                pasteCount++;
+                duplicateFrom(clipboard, pasteCount * 20, pasteCount * 20);
+                return;
+            }
+
+            // Ctrl+D — duplicate selected element
+            if ((event.ctrlKey || event.metaKey) && event.key === "d" && selectedNode) {
+                event.preventDefault();
+                var data;
+                if (selectedNode instanceof Konva.Image) {
+                    data = { type: "image", src: selectedNode.getAttr("src"), x: selectedNode.x(), y: selectedNode.y(), width: selectedNode.width() * selectedNode.scaleX(), height: selectedNode.height() * selectedNode.scaleY(), rotation: selectedNode.rotation() };
+                } else if (selectedNode instanceof Konva.Text) {
+                    data = { type: "text", x: selectedNode.x(), y: selectedNode.y(), content: selectedNode.text(), fontSize: selectedNode.fontSize(), width: selectedNode.width(), rotation: selectedNode.rotation(), fill: selectedNode.fill(), align: selectedNode.align() };
+                }
+                if (data) duplicateFrom(data, 20, 20);
+                return;
+            }
+
             // O key opens file picker
             if (event.key === "o") {
                 openFilePicker();
@@ -332,7 +371,7 @@
             }
 
             // Text color cycling with C key
-            if (event.key === "c" && selectedNode instanceof Konva.Text) {
+            if (event.key === "c" && !event.ctrlKey && !event.metaKey && selectedNode instanceof Konva.Text) {
                 var currentColor = selectedNode.fill();
                 var colorIndex = TEXT_COLORS.indexOf(currentColor);
                 var nextIndex = (colorIndex + 1) % TEXT_COLORS.length;
@@ -343,7 +382,7 @@
             }
 
             // Text alignment cycling with A key
-            if (event.key === "a" && selectedNode instanceof Konva.Text) {
+            if (event.key === "a" && !event.ctrlKey && !event.metaKey && selectedNode instanceof Konva.Text) {
                 var currentAlign = selectedNode.align();
                 var aligns = ["left", "center", "right"];
                 var alignIndex = aligns.indexOf(currentAlign);
@@ -689,6 +728,34 @@
             textNode.text(textarea.value);
             textNode.show();
             textarea.remove();
+            layer.batchDraw();
+            pushHistory();
+        }
+    }
+
+    // Duplicate a node from serialized data
+    function duplicateFrom(data, dx, dy) {
+        var newNode;
+        if (data.type === "image") {
+            var imgObj = imageCache[data.src];
+            if (!imgObj) return;
+            newNode = new Konva.Image({
+                id: generateId(),
+                x: data.x + dx, y: data.y + dy,
+                image: imgObj,
+                width: data.width, height: data.height,
+                rotation: data.rotation || 0,
+                draggable: true,
+            });
+            newNode.setAttr("src", data.src);
+            makeSelectable(newNode);
+            layer.add(newNode);
+            reorderElements();
+        } else if (data.type === "text") {
+            newNode = createTextNode(data.x + dx, data.y + dy, data.content, data.fontSize, generateId(), data.width, data.rotation, data.fill, data.align);
+        }
+        if (newNode) {
+            transformer.nodes([newNode]);
             layer.batchDraw();
             pushHistory();
         }
