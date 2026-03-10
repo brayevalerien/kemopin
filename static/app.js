@@ -358,7 +358,7 @@
 
         if (!response.ok) {
             const data = await response.json();
-            alert(data.detail || "Upload failed");
+            toast("error", data.detail || "Upload failed");
             return;
         }
 
@@ -600,6 +600,26 @@
         const maxMb = (data.max_bytes / 1024 / 1024).toFixed(0);
         boardSizeLabel.textContent = sizeMb + " MB / " + maxMb + " MB";
     }
+
+    // Toast notifications
+    var toastContainer = document.getElementById("toast-container");
+
+    function toast(level, message) {
+        var el = document.createElement("div");
+        el.className = "toast toast-" + level;
+        el.textContent = message;
+        toastContainer.appendChild(el);
+
+        setTimeout(function () {
+            el.classList.add("toast-show");
+        }, 16);
+
+        setTimeout(function () {
+            el.classList.remove("toast-show");
+            el.addEventListener("transitionend", function () { el.remove(); });
+        }, 3000);
+    }
+    window.toast = toast;
 
     function generateId() {
         return (
