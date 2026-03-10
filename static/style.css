@@ -166,13 +166,69 @@ input:focus {
 
 #shortcuts-hint {
     position: fixed;
-    bottom: 8px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 11px;
+    bottom: 16px;
+    right: 16px;
+    font-size: 13px;
     color: #75715e;
     z-index: 10;
     pointer-events: none;
-    opacity: 0.6;
+}
+
+#shortcuts-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(39, 40, 34, 0.88);
+    z-index: 50;
+    align-items: center;
+    justify-content: center;
+}
+
+#shortcuts-overlay.visible {
+    display: flex;
+}
+
+#shortcuts-panel {
+    background: #2d2a2e;
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+#shortcuts-panel h2 {
+    font-size: 10px;
+    font-weight: 400;
+    color: #75715e;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.shortcuts-groups {
+    display: flex;
+    gap: 40px;
+}
+
+.shortcuts-group {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 6px 20px;
+    align-content: start;
+}
+
+.shortcut-row {
+    display: contents;
+}
+
+.shortcut-row kbd {
+    font-family: inherit;
+    font-size: 13px;
+    color: #66d9ef;
+    text-align: right;
     white-space: nowrap;
+}
+
+.shortcut-row span {
+    color: #75715e;
+    font-size: 13px;
 }

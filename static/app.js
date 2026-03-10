@@ -13,6 +13,45 @@
     const saveButton = document.getElementById("save-button");
     const saveIndicator = document.getElementById("save-indicator");
     const boardSizeLabel = document.getElementById("board-size");
+    const shortcutsOverlay = document.getElementById("shortcuts-overlay");
+
+    shortcutsOverlay.addEventListener("click", function (event) {
+        if (event.target === shortcutsOverlay) shortcutsOverlay.classList.remove("visible");
+    });
+
+    // Shortcuts data — edit here to keep overlay in sync
+    var SHORTCUTS = [
+        [
+            { key: "double-click", desc: "add text" },
+            { key: "O",            desc: "upload image" },
+            { key: "paste",        desc: "add image" },
+            { key: "drag & drop",  desc: "add image" },
+            { key: "scroll",       desc: "zoom" },
+            { key: "middle drag",  desc: "pan" },
+        ],
+        [
+            { key: "C",      desc: "cycle text color" },
+            { key: "A",      desc: "cycle text align" },
+            { key: "Del",    desc: "delete selected" },
+            { key: "Ctrl Z", desc: "undo" },
+            { key: "Ctrl Y", desc: "redo" },
+            { key: "H",      desc: "shortcuts" },
+        ],
+    ];
+
+    (function renderShortcuts() {
+        var panel = document.getElementById("shortcuts-panel");
+        var html = "<h2>Keyboard shortcuts</h2><div class=\"shortcuts-groups\">";
+        SHORTCUTS.forEach(function (group) {
+            html += "<div class=\"shortcuts-group\">";
+            group.forEach(function (s) {
+                html += "<div class=\"shortcut-row\"><kbd>" + s.key + "</kbd><span>" + s.desc + "</span></div>";
+            });
+            html += "</div>";
+        });
+        html += "</div>";
+        panel.innerHTML = html;
+    })();
 
     let stage, layer, transformer;
     let boardData = null;
@@ -257,6 +296,18 @@
                     layer.batchDraw();
                     pushHistory();
                 }
+                return;
+            }
+
+            // ? key toggles shortcuts overlay
+            if (event.key === "h") {
+                shortcutsOverlay.classList.toggle("visible");
+                return;
+            }
+
+            // Escape closes overlay
+            if (event.key === "Escape") {
+                shortcutsOverlay.classList.remove("visible");
                 return;
             }
 

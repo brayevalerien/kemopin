@@ -9,11 +9,13 @@ Navigate to `/b/your-board-name`. If the board doesn't exist yet, you'll be prom
 **Canvas controls:**
 
 - double-click: add text
-- middle click / `O`: upload image
+- `O`: upload image
 - paste / drag & drop: add image
-- `C`: change color
-- `A`: align
+- `C`: change color (text selected)
+- `A`: cycle alignment (text selected)
 - `Del`: delete selected element
+- `Ctrl+Z` / `Ctrl+Y`: undo / redo
+- `H`: show keyboard shortcuts
 
 ## Running with Docker (recommended)
 
