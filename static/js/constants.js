@@ -17,11 +17,9 @@ export const SHORTCUTS = [
         { key: "middle drag",   desc: "pan" },
         { key: "Alt + drag",    desc: "free placement" },
         { key: "Alt + rotate",  desc: "free rotation" },
-        { key: "[",             desc: "send image back" },
-        { key: "]",             desc: "bring image forward" },
+        { key: "Del",           desc: "delete selected" },
     ],
     [
-        { key: "Del",    desc: "delete selected" },
         { key: "C",      desc: "cycle text color" },
         { key: "A",      desc: "cycle text align" },
         { key: "Ctrl C", desc: "copy selected" },
