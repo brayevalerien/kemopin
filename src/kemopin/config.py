@@ -1,4 +1,5 @@
 import os
+from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -12,6 +13,11 @@ def _require_env(name: str) -> str:
         raise RuntimeError(f"{name} environment variable is required")
     return value
 
+
+try:
+    VERSION: str = version("kemopin")
+except PackageNotFoundError:
+    VERSION: str = "dev"
 
 ADMIN_PASSWORD: str = _require_env("ADMIN_PASSWORD")
 DATA_DIR: Path = Path(os.environ.get("DATA_DIR", "./data"))

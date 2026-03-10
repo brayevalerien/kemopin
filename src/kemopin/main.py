@@ -33,6 +33,7 @@ async def rate_limit_handler(request: Request, exception: RateLimitExceeded) -> 
 async def get_config() -> dict[str, Any]:
     return {
         "max_history": config.MAX_HISTORY,
+        "version": config.VERSION,
     }
 
 

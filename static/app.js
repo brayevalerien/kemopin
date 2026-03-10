@@ -136,6 +136,7 @@
         if (configRes.ok) {
             const cfg = await configRes.json();
             if (cfg.max_history) MAX_HISTORY = cfg.max_history;
+            if (cfg.version) document.getElementById("version-indicator").textContent = "v" + cfg.version;
         }
         if (boardRes.ok) {
             boardData = await boardRes.json();
