@@ -147,7 +147,7 @@
 
         tr:hover td { background: #2d2a2e; }
 
-        a { color: #ae81ff; text-decoration: none; }
+        a { color: #66d9ef; text-decoration: none; }
         a:hover { text-decoration: underline; }
 
         .slug-link { font-weight: 600; }
@@ -155,7 +155,7 @@
         .size-bar {
             width: 80px;
             height: 4px;
-            background: #3e3b40;
+            background: #49483e;
             display: inline-block;
             vertical-align: middle;
             margin-left: 8px;
@@ -163,14 +163,35 @@
 
         .size-bar-fill {
             height: 100%;
-            background: #75715e;
+            background: #a6e22e;
             transition: width 0.3s;
         }
 
         .size-bar-fill.warn { background: #fd971f; }
         .size-bar-fill.danger { background: #f92672; }
 
-        .muted { color: #75715e; font-size: 13px; }
+        .muted { color: #a59f85; font-size: 13px; }
+
+        .toast-admin {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            padding: 8px 16px;
+            font-size: 13px;
+            background: #2d2a2e;
+            border-left: 3px solid #a6e22e;
+            color: #f8f8f2;
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.15s, transform 0.15s;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .toast-admin.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
 
         .actions {
             display: flex;
@@ -248,8 +269,12 @@
 <!-- Dashboard -->
 <div class="dashboard" id="dashboard">
     <header>
-        <h1>Kemopin <span>admin</span></h1>
+        <div>
+            <h1>Kemopin <span>admin</span></h1>
+            <p class="muted" id="total-storage" style="margin-top:4px;"></p>
+        </div>
         <div class="header-actions">
+            <button class="btn-small" id="create-btn">New board</button>
             <label class="btn-small btn-ghost" style="cursor:pointer;">
                 Import board
                 <input type="file" accept=".json" id="import-input" hidden>
@@ -302,6 +327,21 @@
     </div>
 </div>
 
+<!-- Create board modal -->
+<div class="modal-overlay" id="create-modal">
+    <div class="modal">
+        <h2>New board</h2>
+        <input type="text" id="create-slug-input" placeholder="board-slug">
+        <p class="form-error" id="create-error"></p>
+        <div class="modal-actions">
+            <button class="btn-small btn-ghost" id="create-cancel">Cancel</button>
+            <button class="btn-small" id="create-confirm">Create</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-admin" id="toast-admin"></div>
+
 <script>
 const state = {
     token: sessionStorage.getItem('admin_token') || '',
@@ -314,6 +354,14 @@ const API = '/api/admin';
 
 function headers() {
     return { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' };
+}
+
+function toast(msg) {
+    const el = document.getElementById('toast-admin');
+    el.textContent = msg;
+    el.classList.add('visible');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('visible'), 2000);
 }
 
 // Login
@@ -359,7 +407,9 @@ async function loadBoards() {
     const res = await fetch(`${API}/boards`, { headers: headers() });
     if (res.status === 401) {
         state.token = '';
+        state.password = '';
         sessionStorage.removeItem('admin_token');
+        sessionStorage.removeItem('admin_password');
         loginPage.style.display = '';
         dashboard.classList.remove('visible');
         return;
@@ -384,6 +434,10 @@ function renderBoards() {
     const tbody = document.getElementById('boards-body');
     const empty = document.getElementById('empty-state');
 
+    const totalBytes = state.boards.reduce((sum, b) => sum + b.size_bytes, 0);
+    document.getElementById('total-storage').textContent =
+        `${state.boards.length} board${state.boards.length !== 1 ? 's' : ''} — ${formatBytes(totalBytes)} total`;
+
     if (state.boards.length === 0) {
         tbody.innerHTML = '';
         empty.style.display = '';
@@ -398,9 +452,9 @@ function renderBoards() {
         return `<tr>
             <td><a href="/b/${b.slug}" class="slug-link">${b.slug}</a></td>
             <td class="muted">${formatDate(b.created)}</td>
-            <td class="muted">${b.element_count}</td>
+            <td>${b.element_count}</td>
             <td>
-                <span class="muted">${formatBytes(b.size_bytes)}</span>
+                <span>${formatBytes(b.size_bytes)}</span>
                 <span class="size-bar"><span class="size-bar-fill ${barClass}" style="width:${pct}%"></span></span>
             </td>
             <td class="actions">
@@ -447,6 +501,7 @@ document.getElementById('rename-confirm').addEventListener('click', async () => 
     }
 
     renameModal.classList.remove('visible');
+    toast(`Renamed to ${newSlug}`);
     await loadBoards();
 });
 
@@ -469,7 +524,10 @@ document.getElementById('delete-confirm').addEventListener('click', async () => 
         headers: headers(),
     });
     deleteModal.classList.remove('visible');
-    if (res.ok) await loadBoards();
+    if (res.ok) {
+        toast(`Deleted ${state.pendingDelete}`);
+        await loadBoards();
+    }
 });
 
 // Export
@@ -499,14 +557,67 @@ document.getElementById('import-input').addEventListener('change', async (e) => 
     if (!res.ok) {
         const data = await res.json();
         alert(data.detail || 'Import failed.');
+    } else {
+        toast('Board imported');
     }
 
     e.target.value = '';
     await loadBoards();
 });
 
+// Create board
+const createModal = document.getElementById('create-modal');
+const createSlugInput = document.getElementById('create-slug-input');
+const createError = document.getElementById('create-error');
+
+document.getElementById('create-btn').addEventListener('click', () => {
+    createSlugInput.value = '';
+    createError.textContent = '';
+    createModal.classList.add('visible');
+    createSlugInput.focus();
+});
+
+document.getElementById('create-cancel').addEventListener('click', () => {
+    createModal.classList.remove('visible');
+});
+
+createSlugInput.addEventListener('input', () => {
+    let v = createSlugInput.value.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    createSlugInput.value = v;
+    if (v.length > 0 && v.length < 6) {
+        createError.textContent = 'Short slugs are easier to discover by guessing.';
+        createError.style.color = '#fd971f';
+    } else {
+        createError.textContent = '';
+        createError.style.color = '';
+    }
+});
+
+document.getElementById('create-confirm').addEventListener('click', async () => {
+    const slug = createSlugInput.value.trim();
+    if (!slug) return;
+
+    createError.style.color = '';
+    const res = await fetch(`${API}/boards/create`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ slug }),
+    });
+
+    if (!res.ok) {
+        const data = await res.json();
+        createError.textContent = data.detail || 'Creation failed.';
+        createError.style.color = '#f92672';
+        return;
+    }
+
+    createModal.classList.remove('visible');
+    toast(`Created ${slug}`);
+    await loadBoards();
+});
+
 // Close modals on overlay click
-[renameModal, deleteModal].forEach(modal => {
+[renameModal, deleteModal, createModal].forEach(modal => {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('visible');
     });
