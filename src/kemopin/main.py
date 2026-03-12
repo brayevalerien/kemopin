@@ -154,6 +154,10 @@ def _require_admin(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+class AdminCreateBoardRequest(BaseModel):
+    slug: str
+
+
 class AdminLoginRequest(BaseModel):
     password: str
 
@@ -165,6 +169,19 @@ async def admin_login(body: AdminLoginRequest) -> dict[str, str]:
     token = secrets.token_hex(32)
     _admin_tokens.add(token)
     return {"token": token}
+
+
+@app.post("/api/admin/boards/create")
+async def admin_create_board(body: AdminCreateBoardRequest, request: Request) -> dict[str, Any]:
+    _require_admin(request)
+    if storage.board_exists(body.slug):
+        raise HTTPException(status_code=409, detail="Board already exists")
+    board = storage.create_board(body.slug)
+    redirects = storage.load_redirects()
+    if body.slug in redirects:
+        del redirects[body.slug]
+        storage.save_redirects(redirects)
+    return board
 
 
 @app.get("/api/admin/boards")
