@@ -1,4 +1,5 @@
 import hmac
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -9,10 +10,13 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 from kemopin import config, storage
 from kemopin.images import process_image
+
+# Admin tokens: in-memory set, cleared on restart
+_admin_tokens: set[str] = set()
 
 app = FastAPI()
 
@@ -67,6 +71,12 @@ async def create_board(body: CreateBoardRequest) -> dict[str, Any]:
         raise HTTPException(status_code=409, detail="Board already exists")
 
     board = storage.create_board(body.slug)
+
+    redirects = storage.load_redirects()
+    if body.slug in redirects:
+        del redirects[body.slug]
+        storage.save_redirects(redirects)
+
     return board
 
 
@@ -135,6 +145,110 @@ async def get_asset(slug: str, filename: str) -> FileResponse:
     return FileResponse(path)
 
 
+def _require_admin(request: Request) -> None:
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = auth[7:]
+    if token not in _admin_tokens:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
+@app.post("/api/admin/login")
+async def admin_login(body: AdminLoginRequest) -> dict[str, str]:
+    if not hmac.compare_digest(body.password, config.ADMIN_PASSWORD):
+        raise HTTPException(status_code=401, detail="Wrong password")
+    token = secrets.token_hex(32)
+    _admin_tokens.add(token)
+    return {"token": token}
+
+
+@app.get("/api/admin/boards")
+async def admin_list_boards(request: Request) -> list[dict[str, Any]]:
+    _require_admin(request)
+    boards = storage.list_boards()
+    max_bytes = int(config.MAX_BOARD_SIZE_MB * 1024 * 1024)
+    for b in boards:
+        b["max_bytes"] = max_bytes
+    return boards
+
+
+@app.delete("/api/admin/boards/{slug}")
+async def admin_delete_board(slug: str, request: Request) -> dict[str, str]:
+    _require_admin(request)
+    if not storage.board_exists(slug):
+        raise HTTPException(status_code=404, detail="Board not found")
+    storage.delete_board(slug)
+    return {"status": "ok"}
+
+
+class RenameRequest(BaseModel):
+    new_slug: str
+
+
+@app.post("/api/admin/boards/{slug}/rename")
+async def admin_rename_board(slug: str, body: RenameRequest, request: Request) -> dict[str, str]:
+    _require_admin(request)
+    if not storage.board_exists(slug):
+        raise HTTPException(status_code=404, detail="Board not found")
+    if storage.board_exists(body.new_slug):
+        raise HTTPException(status_code=409, detail="A board with that slug already exists")
+    storage.rename_board(slug, body.new_slug)
+    redirects = storage.load_redirects()
+    redirects[slug] = body.new_slug
+    storage.save_redirects(redirects)
+    return {"status": "ok"}
+
+
+@app.get("/api/admin/boards/{slug}/export")
+async def admin_export_board(slug: str, request: Request) -> Response:
+    _require_admin(request)
+    if not storage.board_exists(slug):
+        raise HTTPException(status_code=404, detail="Board not found")
+    import json
+    data = storage.export_board(slug)
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.json"'},
+    )
+
+
+@app.post("/api/admin/boards/import")
+async def admin_import_board(request: Request) -> dict[str, str]:
+    _require_admin(request)
+    import json
+    body = await request.body()
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+    if "board" not in data or "slug" not in data["board"]:
+        raise HTTPException(status_code=400, detail="Missing board data")
+    if storage.board_exists(data["board"]["slug"]):
+        raise HTTPException(status_code=409, detail="Board already exists")
+    slug = storage.import_board(data)
+    return {"status": "ok", "slug": slug}
+
+
+@app.get("/admin", response_class=HTMLResponse)
+async def serve_admin() -> HTMLResponse:
+    html_path = STATIC_DIR / "admin.html"
+    return HTMLResponse(html_path.read_text())
+
+
 @app.get("/{slug}", response_class=RedirectResponse)
 async def redirect_to_board(slug: str) -> RedirectResponse:
+    redirects = storage.load_redirects()
+    if slug in redirects:
+        target = redirects[slug]
+        if storage.board_exists(target):
+            return RedirectResponse(url=f"/b/{target}", status_code=301)
+        else:
+            del redirects[slug]
+            storage.save_redirects(redirects)
     return RedirectResponse(url=f"/b/{slug}", status_code=301)
