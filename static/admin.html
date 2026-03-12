@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin — Kemopin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #272822;
+            color: #f8f8f2;
+            font-family: system-ui, sans-serif;
+            min-height: 100dvh;
+            padding: 2rem;
+        }
+
+        .login-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100dvh - 4rem);
+        }
+
+        .form-box {
+            background: #2d2a2e;
+            padding: 32px;
+            width: 320px;
+        }
+
+        .form-box h1 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .form-box p {
+            font-size: 14px;
+            margin-bottom: 16px;
+            color: #75715e;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px 12px;
+            background: #272822;
+            border: 1px solid #75715e;
+            border-radius: 0;
+            color: #f8f8f2;
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        input:focus { border-color: #ae81ff; }
+
+        button {
+            background: #ae81ff;
+            color: #272822;
+            border: none;
+            border-radius: 0;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        button:hover { background: #c4a7ff; }
+        button:active { background: #9b6fe6; }
+
+        .form-box button { width: 100%; }
+
+        .form-error {
+            color: #f92672;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+
+        /* Dashboard */
+        .dashboard { display: none; }
+        .dashboard.visible { display: block; }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        header h1 span { color: #75715e; font-weight: 400; }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: #75715e;
+            border: 1px solid #3e3b40;
+        }
+
+        .btn-ghost:hover { border-color: #75715e; color: #f8f8f2; }
+
+        .btn-danger {
+            background: transparent;
+            color: #f92672;
+            border: 1px solid #f9267244;
+        }
+
+        .btn-danger:hover { background: #f9267222; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            text-align: left;
+            font-size: 11px;
+            font-weight: 400;
+            color: #75715e;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 8px 12px;
+            border-bottom: 1px solid #3e3b40;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #3e3b4066;
+            vertical-align: middle;
+        }
+
+        tr:hover td { background: #2d2a2e; }
+
+        a { color: #ae81ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .slug-link { font-weight: 600; }
+
+        .size-bar {
+            width: 80px;
+            height: 4px;
+            background: #3e3b40;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        .size-bar-fill {
+            height: 100%;
+            background: #75715e;
+            transition: width 0.3s;
+        }
+
+        .size-bar-fill.warn { background: #fd971f; }
+        .size-bar-fill.danger { background: #f92672; }
+
+        .muted { color: #75715e; font-size: 13px; }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+        }
+
+        /* Rename modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(39, 40, 34, 0.88);
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: #2d2a2e;
+            padding: 32px;
+            width: 360px;
+        }
+
+        .modal h2 {
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        /* Import area */
+        .import-area {
+            margin-top: 2rem;
+            padding: 2rem;
+            border: 1px dashed #3e3b40;
+            text-align: center;
+            color: #75715e;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .import-area:hover { border-color: #75715e; }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #75715e;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="login-page" id="login-page">
+    <div class="form-box">
+        <h1>Admin</h1>
+        <p>Enter admin password to continue.</p>
+        <form id="login-form">
+            <input type="password" id="login-password" placeholder="Password" autofocus>
+            <button type="submit">Log in</button>
+        </form>
+        <p class="form-error" id="login-error"></p>
+    </div>
+</div>
+
+<!-- Dashboard -->
+<div class="dashboard" id="dashboard">
+    <header>
+        <h1>Kemopin <span>admin</span></h1>
+        <div class="header-actions">
+            <label class="btn-small btn-ghost" style="cursor:pointer;">
+                Import board
+                <input type="file" accept=".json" id="import-input" hidden>
+            </label>
+            <button class="btn-small btn-ghost" id="logout-btn">Log out</button>
+        </div>
+    </header>
+
+    <table id="boards-table">
+        <thead>
+            <tr>
+                <th>Board</th>
+                <th>Created</th>
+                <th>Elements</th>
+                <th>Size</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="boards-body"></tbody>
+    </table>
+
+    <div class="empty-state" id="empty-state" style="display:none;">
+        No boards yet.
+    </div>
+</div>
+
+<!-- Rename modal -->
+<div class="modal-overlay" id="rename-modal">
+    <div class="modal">
+        <h2>Rename board</h2>
+        <p class="muted" style="margin-bottom:12px;">Renaming <strong id="rename-old-slug"></strong></p>
+        <input type="text" id="rename-input" placeholder="new-slug">
+        <p class="form-error" id="rename-error"></p>
+        <div class="modal-actions">
+            <button class="btn-small btn-ghost" id="rename-cancel">Cancel</button>
+            <button class="btn-small" id="rename-confirm">Rename</button>
+        </div>
+    </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal-overlay" id="delete-modal">
+    <div class="modal">
+        <h2>Delete board</h2>
+        <p class="muted">This will permanently delete <strong id="delete-slug"></strong> and all its assets.</p>
+        <div class="modal-actions">
+            <button class="btn-small btn-ghost" id="delete-cancel">Cancel</button>
+            <button class="btn-small btn-danger" id="delete-confirm">Delete</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const state = {
+    token: sessionStorage.getItem('admin_token') || '',
+    boards: [],
+    pendingRename: null,
+    pendingDelete: null,
+};
+
+const API = '/api/admin';
+
+function headers() {
+    return { 'Authorization': `Bearer ${state.token}`, 'Content-Type': 'application/json' };
+}
+
+// Login
+const loginPage = document.getElementById('login-page');
+const dashboard = document.getElementById('dashboard');
+const loginForm = document.getElementById('login-form');
+const loginError = document.getElementById('login-error');
+
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    loginError.textContent = '';
+    const password = document.getElementById('login-password').value;
+    const res = await fetch(`${API}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+    });
+    if (!res.ok) {
+        loginError.textContent = 'Wrong password.';
+        return;
+    }
+    const data = await res.json();
+    state.token = data.token;
+    sessionStorage.setItem('admin_token', data.token);
+    showDashboard();
+});
+
+document.getElementById('logout-btn').addEventListener('click', () => {
+    state.token = '';
+    sessionStorage.removeItem('admin_token');
+    loginPage.style.display = '';
+    dashboard.classList.remove('visible');
+});
+
+async function showDashboard() {
+    loginPage.style.display = 'none';
+    dashboard.classList.add('visible');
+    await loadBoards();
+}
+
+// Boards
+async function loadBoards() {
+    const res = await fetch(`${API}/boards`, { headers: headers() });
+    if (res.status === 401) {
+        state.token = '';
+        sessionStorage.removeItem('admin_token');
+        loginPage.style.display = '';
+        dashboard.classList.remove('visible');
+        return;
+    }
+    state.boards = await res.json();
+    renderBoards();
+}
+
+function formatBytes(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function renderBoards() {
+    const tbody = document.getElementById('boards-body');
+    const empty = document.getElementById('empty-state');
+
+    if (state.boards.length === 0) {
+        tbody.innerHTML = '';
+        empty.style.display = '';
+        return;
+    }
+    empty.style.display = 'none';
+
+    const maxBytes = state.boards[0]?.max_bytes || (100 * 1024 * 1024);
+    tbody.innerHTML = state.boards.map(b => {
+        const pct = Math.min(100, (b.size_bytes / maxBytes) * 100);
+        const barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
+        return `<tr>
+            <td><a href="/b/${b.slug}" class="slug-link">${b.slug}</a></td>
+            <td class="muted">${formatDate(b.created)}</td>
+            <td class="muted">${b.element_count}</td>
+            <td>
+                <span class="muted">${formatBytes(b.size_bytes)}</span>
+                <span class="size-bar"><span class="size-bar-fill ${barClass}" style="width:${pct}%"></span></span>
+            </td>
+            <td class="actions">
+                <button class="btn-small btn-ghost" onclick="startRename('${b.slug}')">Rename</button>
+                <button class="btn-small btn-ghost" onclick="exportBoard('${b.slug}')">Export</button>
+                <button class="btn-small btn-danger" onclick="startDelete('${b.slug}')">Delete</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// Rename
+const renameModal = document.getElementById('rename-modal');
+const renameInput = document.getElementById('rename-input');
+const renameError = document.getElementById('rename-error');
+
+window.startRename = (slug) => {
+    state.pendingRename = slug;
+    document.getElementById('rename-old-slug').textContent = slug;
+    renameInput.value = slug;
+    renameError.textContent = '';
+    renameModal.classList.add('visible');
+    renameInput.focus();
+};
+
+document.getElementById('rename-cancel').addEventListener('click', () => {
+    renameModal.classList.remove('visible');
+});
+
+document.getElementById('rename-confirm').addEventListener('click', async () => {
+    const newSlug = renameInput.value.trim();
+    if (!newSlug || newSlug === state.pendingRename) return;
+
+    const res = await fetch(`${API}/boards/${state.pendingRename}/rename`, {
+        method: 'POST',
+        headers: headers(),
+        body: JSON.stringify({ new_slug: newSlug }),
+    });
+
+    if (!res.ok) {
+        const data = await res.json();
+        renameError.textContent = data.detail || 'Rename failed.';
+        return;
+    }
+
+    renameModal.classList.remove('visible');
+    await loadBoards();
+});
+
+// Delete
+const deleteModal = document.getElementById('delete-modal');
+
+window.startDelete = (slug) => {
+    state.pendingDelete = slug;
+    document.getElementById('delete-slug').textContent = slug;
+    deleteModal.classList.add('visible');
+};
+
+document.getElementById('delete-cancel').addEventListener('click', () => {
+    deleteModal.classList.remove('visible');
+});
+
+document.getElementById('delete-confirm').addEventListener('click', async () => {
+    const res = await fetch(`${API}/boards/${state.pendingDelete}`, {
+        method: 'DELETE',
+        headers: headers(),
+    });
+    deleteModal.classList.remove('visible');
+    if (res.ok) await loadBoards();
+});
+
+// Export
+window.exportBoard = async (slug) => {
+    const res = await fetch(`${API}/boards/${slug}/export`, { headers: headers() });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `${slug}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+};
+
+// Import
+document.getElementById('import-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+
+    const res = await fetch(`${API}/boards/import`, {
+        method: 'POST',
+        headers: headers(),
+        body: text,
+    });
+
+    if (!res.ok) {
+        const data = await res.json();
+        alert(data.detail || 'Import failed.');
+    }
+
+    e.target.value = '';
+    await loadBoards();
+});
+
+// Close modals on overlay click
+[renameModal, deleteModal].forEach(modal => {
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.remove('visible');
+    });
+});
+
+// Init: check if we have a valid token
+(async () => {
+    if (state.token) {
+        const res = await fetch(`${API}/boards`, { headers: headers() });
+        if (res.ok) {
+            showDashboard();
+            return;
+        }
+        state.token = '';
+        sessionStorage.removeItem('admin_token');
+    }
+})();
+</script>
+
+</body>
+</html>
