@@ -25,6 +25,7 @@ export const SHORTCUTS = [
         { key: "Ctrl C", desc: "copy selected" },
         { key: "Ctrl V", desc: "paste" },
         { key: "Ctrl D", desc: "duplicate" },
+        { key: "Ctrl S", desc: "save" },
         { key: "Ctrl Z", desc: "undo" },
         { key: "Ctrl Y", desc: "redo" },
         { key: "F",      desc: "fit all in view" },

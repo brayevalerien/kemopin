@@ -4,6 +4,7 @@ import { serializeElement } from "./serialize.js";
 import { pushHistory, undo, redo } from "./history.js";
 import { createTextNode, duplicateFrom, fitToView } from "./elements.js";
 import { openFilePicker, uploadAndAddImage, fetchAndUploadFromUrl } from "./upload.js";
+import { performSave } from "./save.js";
 
 export function setupCanvas() {
     const container = document.getElementById("canvas-container");
@@ -157,6 +158,7 @@ function setupKeyboard() {
         var selected = nodes.length > 0 ? nodes[0] : null;
         var ctrl     = e.ctrlKey || e.metaKey;
 
+        if (ctrl && e.key.toLowerCase() === "s") { e.preventDefault(); performSave(); return; }
         if (ctrl && e.key.toLowerCase() === "z") { e.shiftKey ? redo() : undo(); return; }
         if (ctrl && e.key === "y")               { redo(); return; }
 
