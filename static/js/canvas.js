@@ -55,6 +55,9 @@ export function setupCanvas() {
     setupPaste();
     setupKeyboard();
     setupAlt();
+    updateGrid(container);
+
+    state.stage.on("dragmove", function () { updateGrid(container); });
 
     state.stage.on("click tap", function (e) {
         if (e.target === state.stage) state.transformer.nodes([]);
@@ -72,7 +75,17 @@ export function setupCanvas() {
     });
 }
 
+function updateGrid(container) {
+    var scale = state.stage.scaleX();
+    var size = 20 * scale;
+    var dot = 1.5 * scale;
+    container.style.backgroundImage = "radial-gradient(circle, #3e3b40 " + dot + "px, transparent " + dot + "px)";
+    container.style.backgroundSize = size + "px " + size + "px";
+    container.style.backgroundPosition = state.stage.x() + "px " + state.stage.y() + "px";
+}
+
 function setupZoom() {
+    var container = document.getElementById("canvas-container");
     state.stage.on("wheel", function (e) {
         e.evt.preventDefault();
         var oldScale = state.stage.scaleX();
@@ -82,6 +95,7 @@ function setupZoom() {
         var origin   = { x: (pointer.x - state.stage.x()) / oldScale, y: (pointer.y - state.stage.y()) / oldScale };
         state.stage.scale({ x: scale, y: scale });
         state.stage.position({ x: pointer.x - origin.x * scale, y: pointer.y - origin.y * scale });
+        updateGrid(container);
     });
 }
 
@@ -99,6 +113,7 @@ function setupPan(container) {
         if (!panning) return;
         state.stage.position({ x: state.stage.x() + e.clientX - last.x, y: state.stage.y() + e.clientY - last.y });
         last = { x: e.clientX, y: e.clientY };
+        updateGrid(container);
     });
     window.addEventListener("mouseup", function (e) {
         if (e.button === 1) { panning = false; last = null; }
