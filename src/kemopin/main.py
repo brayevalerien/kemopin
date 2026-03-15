@@ -98,7 +98,6 @@ async def save_board(slug: str, body: dict[str, Any]) -> dict[str, str]:
     if not storage.board_exists(slug):
         raise HTTPException(status_code=404, detail="Board not found")
     storage.save_board(slug, body)
-    storage.delete_orphaned_assets(slug, body)
     return {"status": "ok"}
 
 
