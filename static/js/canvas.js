@@ -103,9 +103,13 @@ function setupPan(container) {
     var panning = false;
     var last    = null;
 
+    // Prevent X11/Wayland middle-click paste at the source (same fix as Excalidraw)
+    document.addEventListener("mousedown", function (e) {
+        if (e.button === 1) e.preventDefault();
+    });
+
     container.addEventListener("mousedown", function (e) {
         if (e.button !== 1) return;
-        e.preventDefault();
         panning = true;
         last = { x: e.clientX, y: e.clientY };
     });
