@@ -2,6 +2,7 @@ import { state } from "./state.js";
 import { AUTOSAVE_DELAY } from "./constants.js";
 import { serializeElements } from "./serialize.js";
 import { toast } from "./utils.js";
+import { updateBoardSize } from "./boardsize.js";
 
 var dirty         = false;
 var saving        = false;
@@ -38,6 +39,7 @@ export async function performSave(manual) {
             dirty = false;
             document.getElementById("save-indicator").className = "";
             if (manual) toast("success", "Saved");
+            updateBoardSize();
         } else {
             document.getElementById("save-indicator").className = "unsaved";
             toast("error", "Save failed");
