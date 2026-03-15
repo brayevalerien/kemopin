@@ -107,6 +107,7 @@ function setupPan(container) {
         if (e.button !== 1) return;
         e.preventDefault();
         panning = true;
+        state.panning = true;
         last = { x: e.clientX, y: e.clientY };
     });
     window.addEventListener("mousemove", function (e) {
@@ -116,7 +117,7 @@ function setupPan(container) {
         updateGrid(container);
     });
     window.addEventListener("mouseup", function (e) {
-        if (e.button === 1) { panning = false; last = null; }
+        if (e.button === 1) { panning = false; state.panning = false; last = null; }
     });
 }
 
@@ -146,6 +147,7 @@ function setupDragDrop() {
 
 function setupPaste() {
     window.addEventListener("paste", function (e) {
+        if (state.panning) return;
         // Internal canvas clipboard takes priority over OS clipboard
         if (state.clipboard) {
             state.pasteCount++;

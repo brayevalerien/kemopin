@@ -19,6 +19,9 @@ export const state = {
     isRestoring:  false,
     maxHistory:   50,   // may be overwritten from /api/config
 
+    // Pan state (managed by canvas.js)
+    panning: false,
+
     // Clipboard (managed by canvas.js keyboard handler)
     clipboard:  null,
     pasteCount: 0,
