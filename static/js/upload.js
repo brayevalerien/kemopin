@@ -23,10 +23,11 @@ async function resizeIfNeeded(file) {
     canvas.getContext("2d").drawImage(bitmap, 0, 0, canvas.width, canvas.height);
     bitmap.close();
 
+    var mime = file.type === "image/png" ? "image/png" : "image/jpeg";
     return new Promise(function (resolve) {
         canvas.toBlob(function (blob) {
             resolve({ blob, resized: true });
-        }, "image/jpeg", 0.92);
+        }, mime, mime === "image/jpeg" ? 0.92 : undefined);
     });
 }
 
@@ -48,7 +49,7 @@ export async function fetchAndUploadFromUrl(url) {
         var blob = await r.blob();
         if (!blob.type.startsWith("image/")) return;
         uploadAndAddImage(new File([blob], "dropped.jpg", { type: blob.type }));
-    } catch (_) { /* ignore CORS/network errors */ }
+    } catch (_) { toast("error", "Failed to load dropped image"); }
 }
 
 export async function uploadAndAddImage(file) {
