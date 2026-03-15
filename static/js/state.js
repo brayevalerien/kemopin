@@ -19,7 +19,6 @@ export const state = {
     isRestoring:  false,
     maxHistory:   50,   // may be overwritten from /api/config
 
-    // Clipboard (managed by canvas.js keyboard handler)
-    clipboard:  null,
+    // Paste offset counter (reset on Ctrl+C, incremented on each paste)
     pasteCount: 0,
 };

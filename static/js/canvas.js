@@ -5,6 +5,7 @@ import { pushHistory, undo, redo } from "./history.js";
 import { createTextNode, duplicateFrom, fitToView } from "./elements.js";
 import { openFilePicker, uploadAndAddImage, fetchAndUploadFromUrl } from "./upload.js";
 import { performSave } from "./save.js";
+import { toast } from "./utils.js";
 
 export function setupCanvas() {
     const container = document.getElementById("canvas-container");
@@ -149,19 +150,43 @@ function setupDragDrop() {
 }
 
 function setupPaste() {
+    // Track whether Ctrl/Cmd is held — paste events don't carry modifier state
+    var ctrlHeld = false;
+    window.addEventListener("keydown", function (e) { if (e.key === "Control" || e.key === "Meta") ctrlHeld = true; });
+    window.addEventListener("keyup",   function (e) { if (e.key === "Control" || e.key === "Meta") ctrlHeld = false; });
+    window.addEventListener("blur",    function ()  { ctrlHeld = false; });
+
     window.addEventListener("paste", function (e) {
-        // Internal canvas clipboard takes priority over OS clipboard
-        if (state.clipboard) {
-            state.pasteCount++;
-            duplicateFrom(state.clipboard, state.pasteCount * 20, state.pasteCount * 20);
-            return;
-        }
-        // No internal clipboard — fall back to OS clipboard image if present
+        // Reject middle-click paste (Linux X11/Wayland): only accept Ctrl+V / Cmd+V
+        if (!ctrlHeld) return;
+
         var items = e.clipboardData.items;
+        // OS clipboard images always take priority
         for (var i = 0; i < items.length; i++) {
             if (items[i].type.startsWith("image/")) {
                 uploadAndAddImage(items[i].getAsFile());
+                return;
             }
+        }
+        // No image — check for kemopin element JSON in text
+        var text = e.clipboardData.getData("text/plain");
+        if (text) {
+            try {
+                var data = JSON.parse(text);
+                if (data && data._kemopin && data.element) {
+                    var el = data.element;
+                    var viewW = state.stage.width()  / state.stage.scaleX();
+                    var viewH = state.stage.height() / state.stage.scaleY();
+                    var cx = -state.stage.x() / state.stage.scaleX() + viewW / 2;
+                    var cy = -state.stage.y() / state.stage.scaleY() + viewH / 2;
+                    var elH = el.height || 50;
+                    state.pasteCount++;
+                    var offset = state.pasteCount * 20;
+                    var dx = cx - el.width / 2 - el.x + offset;
+                    var dy = cy - elH / 2 - el.y + offset;
+                    duplicateFrom(el, dx, dy);
+                }
+            } catch (_) {}
         }
     });
 }
@@ -182,8 +207,12 @@ function setupKeyboard() {
         if (ctrl && e.key === "y")               { redo(); return; }
 
         if (ctrl && e.key === "c" && selected) {
-            state.clipboard  = serializeElement(selected);
+            e.preventDefault();
+            var data = serializeElement(selected);
             state.pasteCount = 0;
+            navigator.clipboard.writeText(JSON.stringify({ _kemopin: true, element: data })).catch(function () {
+                toast("warning", "Copy failed — clipboard access denied");
+            });
             return;
         }
         if (ctrl && e.key === "d" && selected) {
