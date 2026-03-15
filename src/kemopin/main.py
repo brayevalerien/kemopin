@@ -38,6 +38,11 @@ async def not_found_handler(request: Request, exc: HTTPException) -> HTMLRespons
     return HTMLResponse(NOT_FOUND_HTML, status_code=404)
 
 
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    return JSONResponse(status_code=400, content={"detail": str(exc)})
+
+
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exception: RateLimitExceeded) -> JSONResponse:
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded"})
