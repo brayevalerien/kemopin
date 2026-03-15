@@ -9,8 +9,12 @@ export function pushHistory() {
     if (state.isRestoring) return;
     state.history = state.history.slice(0, state.historyIndex + 1);
     state.history.push(serializeElements());
-    if (state.history.length > state.maxHistory) state.history.shift();
-    else state.historyIndex++;
+    if (state.history.length > state.maxHistory) {
+        state.history.shift();
+        if (state.historyIndex > 0) state.historyIndex--;
+    } else {
+        state.historyIndex++;
+    }
     markDirty();
 }
 
