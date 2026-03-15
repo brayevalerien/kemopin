@@ -1,6 +1,6 @@
 [project]
 name = "kemopin"
-version = "0.4.6"
+version = "0.4.7"
 description = "Self-hosted freeform moodboard"
 requires-python = ">=3.12"
 dependencies = [
