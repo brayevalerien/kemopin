@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -6,8 +7,23 @@ from typing import Any
 
 from kemopin.config import DATA_DIR
 
+SLUG_RE = re.compile(r"^[a-z0-9_-]{1,64}$")
+
+
+def validate_slug(slug: str) -> None:
+    if not SLUG_RE.match(slug):
+        raise ValueError(f"Invalid slug: {slug!r}")
+
+
+def _check_containment(path: Path, base: Path) -> Path:
+    resolved = path.resolve()
+    if not str(resolved).startswith(str(base.resolve()) + "/") and resolved != base.resolve():
+        raise ValueError(f"Path escapes base directory: {path}")
+    return resolved
+
 
 def board_directory(slug: str) -> Path:
+    validate_slug(slug)
     return DATA_DIR / "boards" / slug
 
 
@@ -72,7 +88,9 @@ def delete_orphaned_assets(slug: str, board: dict[str, Any]) -> None:
 
 
 def get_asset_path(slug: str, filename: str) -> Path | None:
-    path = assets_directory(slug) / filename
+    base = assets_directory(slug)
+    path = base / filename
+    _check_containment(path, base)
     if path.is_file():
         return path
     return None
@@ -106,6 +124,7 @@ def delete_board(slug: str) -> None:
 
 
 def rename_board(old_slug: str, new_slug: str) -> None:
+    validate_slug(new_slug)
     old_dir = board_directory(old_slug)
     new_dir = board_directory(new_slug)
     old_dir.rename(new_dir)
@@ -131,11 +150,15 @@ def import_board(data: dict[str, Any]) -> str:
     import base64
     board = data["board"]
     slug = board["slug"]
+    validate_slug(slug)
     board_directory(slug).mkdir(parents=True, exist_ok=False)
     assets_directory(slug).mkdir()
     board_json_path(slug).write_text(json.dumps(board, indent=2))
+    base = assets_directory(slug)
     for filename, b64data in data.get("assets", {}).items():
-        (assets_directory(slug) / filename).write_bytes(base64.b64decode(b64data))
+        dest = base / filename
+        _check_containment(dest, base)
+        dest.write_bytes(base64.b64decode(b64data))
     return slug
 
 
