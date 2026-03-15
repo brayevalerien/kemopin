@@ -14,7 +14,7 @@ export function markDirty() {
     autosaveTimer = setTimeout(performSave, AUTOSAVE_DELAY);
 }
 
-export async function performSave() {
+export async function performSave(manual) {
     if (!dirty || saving) return;
     saving = true;
     clearTimeout(autosaveTimer);
@@ -37,6 +37,7 @@ export async function performSave() {
         if (response.ok) {
             dirty = false;
             document.getElementById("save-indicator").className = "";
+            if (manual) toast("success", "Saved");
         } else {
             document.getElementById("save-indicator").className = "unsaved";
             toast("error", "Save failed");
@@ -47,6 +48,6 @@ export async function performSave() {
 }
 
 export function initSave() {
-    document.getElementById("save-button").addEventListener("click", performSave);
+    document.getElementById("save-button").addEventListener("click", function () { performSave(true); });
     setInterval(function () { if (dirty) performSave(); }, 30000);
 }
