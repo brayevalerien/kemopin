@@ -4,6 +4,7 @@ import { serializeElements } from "./serialize.js";
 import { toast } from "./utils.js";
 
 var dirty         = false;
+var saving        = false;
 var autosaveTimer = null;
 
 export function markDirty() {
@@ -14,28 +15,34 @@ export function markDirty() {
 }
 
 export async function performSave() {
-    if (!dirty) return;
+    if (!dirty || saving) return;
+    saving = true;
     clearTimeout(autosaveTimer);
     document.getElementById("save-indicator").className = "saving";
 
-    const payload = {
-        slug: state.slug,
-        canvas: { x: state.stage.x(), y: state.stage.y(), scaleX: state.stage.scaleX(), scaleY: state.stage.scaleY() },
-        elements: serializeElements(),
-    };
+    try {
+        const payload = {
+            slug: state.slug,
+            created: state.boardData.created,
+            canvas: { x: state.stage.x(), y: state.stage.y(), scaleX: state.stage.scaleX(), scaleY: state.stage.scaleY() },
+            elements: serializeElements(),
+        };
 
-    const response = await fetch(`/api/boards/${state.slug}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-    });
+        const response = await fetch(`/api/boards/${state.slug}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
 
-    if (response.ok) {
-        dirty = false;
-        document.getElementById("save-indicator").className = "";
-    } else {
-        document.getElementById("save-indicator").className = "unsaved";
-        toast("error", "Save failed");
+        if (response.ok) {
+            dirty = false;
+            document.getElementById("save-indicator").className = "";
+        } else {
+            document.getElementById("save-indicator").className = "unsaved";
+            toast("error", "Save failed");
+        }
+    } finally {
+        saving = false;
     }
 }
 
