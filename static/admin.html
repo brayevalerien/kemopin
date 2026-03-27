@@ -277,7 +277,7 @@
             <button class="btn-small" id="create-btn">New board</button>
             <label class="btn-small btn-ghost" style="cursor:pointer;">
                 Import board
-                <input type="file" accept=".json" id="import-input" hidden>
+                <input type="file" accept=".json,.zip" id="import-input" hidden>
             </label>
             <button class="btn-small btn-ghost" id="logout-btn">Log out</button>
         </div>
@@ -546,7 +546,7 @@ window.exportBoard = async (slug) => {
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${slug}.json`;
+    a.download = `${slug}.zip`;
     a.click();
     URL.revokeObjectURL(a.href);
 };
@@ -555,12 +555,17 @@ window.exportBoard = async (slug) => {
 document.getElementById('import-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const text = await file.text();
+
+    const buf = await file.arrayBuffer();
+    const magic = new Uint8Array(buf, 0, 2);
+    const isZip = magic[0] === 0x50 && magic[1] === 0x4B;
+    const body = isZip ? buf : new TextDecoder().decode(buf);
+    const extraHeaders = isZip ? {} : { 'Content-Type': 'application/json' };
 
     const res = await fetch(`${API}/boards/import`, {
         method: 'POST',
-        headers: headers(),
-        body: text,
+        headers: { ...headers(), ...extraHeaders },
+        body,
     });
 
     if (!res.ok) {
