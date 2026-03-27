@@ -249,6 +249,35 @@
             padding: 4rem 2rem;
             color: #75715e;
         }
+
+        .select-col { width: 32px; padding-right: 0; }
+        input[type="checkbox"] { accent-color: #ae81ff; width: 14px; height: 14px; cursor: pointer; margin: 0; }
+        tr.selected td { background: #3e3b40; }
+
+        .bulk-bar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(16px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            background: #2d2a2e;
+            border: 1px solid #3e3b40;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s, transform 0.15s;
+            z-index: 40;
+            white-space: nowrap;
+        }
+        .bulk-bar.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+        .bulk-bar-count { font-size: 13px; color: #75715e; flex: 1; }
     </style>
 </head>
 <body>
@@ -286,6 +315,7 @@
     <table id="boards-table">
         <thead>
             <tr>
+                <th class="select-col"><input type="checkbox" id="select-all"></th>
                 <th>Board</th>
                 <th>Created</th>
                 <th>Elements</th>
@@ -327,6 +357,19 @@
     </div>
 </div>
 
+<!-- Bulk delete modal -->
+<div class="modal-overlay" id="bulk-delete-modal">
+    <div class="modal">
+        <h2>Delete selected boards</h2>
+        <p class="muted" style="margin-bottom:12px;">This will permanently delete the following boards and all their assets:</p>
+        <ul id="bulk-delete-list" style="margin:0 0 4px 16px; font-size:13px; color:#f8f8f2; line-height:1.8;"></ul>
+        <div class="modal-actions">
+            <button class="btn-small btn-ghost" id="bulk-delete-cancel">Cancel</button>
+            <button class="btn-small btn-danger" id="bulk-delete-confirm">Delete all</button>
+        </div>
+    </div>
+</div>
+
 <!-- Create board modal -->
 <div class="modal-overlay" id="create-modal">
     <div class="modal">
@@ -340,6 +383,12 @@
     </div>
 </div>
 
+<div class="bulk-bar" id="bulk-bar">
+    <span class="bulk-bar-count" id="bulk-count"></span>
+    <button class="btn-small btn-ghost" onclick="bulkExport()">Export selected</button>
+    <button class="btn-small btn-danger" onclick="startBulkDelete()">Delete selected</button>
+</div>
+
 <div class="toast-admin" id="toast-admin"></div>
 
 <script>
@@ -348,6 +397,7 @@ const state = {
     boards: [],
     pendingRename: null,
     pendingDelete: null,
+    selected: new Set(),
 };
 
 const API = '/api/admin';
@@ -434,6 +484,9 @@ function renderBoards() {
     const tbody = document.getElementById('boards-body');
     const empty = document.getElementById('empty-state');
 
+    state.selected.clear();
+    updateBulkBar();
+
     const totalBytes = state.boards.reduce((sum, b) => sum + b.size_bytes, 0);
     document.getElementById('total-storage').textContent =
         `${state.boards.length} board${state.boards.length !== 1 ? 's' : ''} — ${formatBytes(totalBytes)} total`;
@@ -449,7 +502,8 @@ function renderBoards() {
     tbody.innerHTML = state.boards.map(b => {
         const pct = Math.min(100, (b.size_bytes / maxBytes) * 100);
         const barClass = pct > 90 ? 'danger' : pct > 70 ? 'warn' : '';
-        return `<tr>
+        return `<tr data-slug="${b.slug}">
+            <td class="select-col"><input type="checkbox" class="row-check" data-slug="${b.slug}"></td>
             <td><a href="/b/${b.slug}" class="slug-link">${b.slug}</a></td>
             <td class="muted">${formatDate(b.created)}</td>
             <td>${b.element_count}</td>
@@ -465,7 +519,78 @@ function renderBoards() {
             </td>
         </tr>`;
     }).join('');
+
+    document.getElementById('select-all').checked = false;
 }
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulk-bar');
+    const count = state.selected.size;
+    if (count > 0) {
+        bar.classList.add('visible');
+        document.getElementById('bulk-count').textContent = `${count} board${count !== 1 ? 's' : ''} selected`;
+    } else {
+        bar.classList.remove('visible');
+    }
+}
+
+document.getElementById('boards-table').addEventListener('change', (e) => {
+    if (!e.target.classList.contains('row-check')) return;
+    const slug = e.target.dataset.slug;
+    const row = e.target.closest('tr');
+    if (e.target.checked) {
+        state.selected.add(slug);
+        row.classList.add('selected');
+    } else {
+        state.selected.delete(slug);
+        row.classList.remove('selected');
+        document.getElementById('select-all').checked = false;
+    }
+    updateBulkBar();
+});
+
+document.getElementById('select-all').addEventListener('change', (e) => {
+    const checked = e.target.checked;
+    document.querySelectorAll('.row-check').forEach(cb => {
+        cb.checked = checked;
+        const slug = cb.dataset.slug;
+        const row = cb.closest('tr');
+        if (checked) {
+            state.selected.add(slug);
+            row.classList.add('selected');
+        } else {
+            state.selected.delete(slug);
+            row.classList.remove('selected');
+        }
+    });
+    updateBulkBar();
+});
+
+window.bulkExport = async () => {
+    for (const slug of state.selected) await exportBoard(slug);
+};
+
+const bulkDeleteModal = document.getElementById('bulk-delete-modal');
+
+window.startBulkDelete = () => {
+    const list = document.getElementById('bulk-delete-list');
+    list.innerHTML = [...state.selected].map(s => `<li>${s}</li>`).join('');
+    bulkDeleteModal.classList.add('visible');
+};
+
+document.getElementById('bulk-delete-cancel').addEventListener('click', () => {
+    bulkDeleteModal.classList.remove('visible');
+});
+
+document.getElementById('bulk-delete-confirm').addEventListener('click', async () => {
+    bulkDeleteModal.classList.remove('visible');
+    const slugs = [...state.selected];
+    for (const slug of slugs) {
+        await fetch(`${API}/boards/${slug}`, { method: 'DELETE', headers: headers() });
+    }
+    toast(`Deleted ${slugs.length} board${slugs.length !== 1 ? 's' : ''}`);
+    await loadBoards();
+});
 
 // Rename
 const renameModal = document.getElementById('rename-modal');
@@ -631,7 +756,7 @@ document.getElementById('create-confirm').addEventListener('click', async () => 
 });
 
 // Close modals on overlay click
-[renameModal, deleteModal, createModal].forEach(modal => {
+[renameModal, deleteModal, createModal, bulkDeleteModal].forEach(modal => {
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.remove('visible');
     });
