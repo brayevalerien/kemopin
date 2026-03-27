@@ -149,6 +149,19 @@ def export_board(slug: str) -> dict[str, Any]:
     return {"board": board, "assets": assets}
 
 
+def export_board_zip(slug: str) -> bytes:
+    import io
+    import zipfile
+    board = read_board(slug)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("board.json", json.dumps(board, indent=2))
+        for path in assets_directory(slug).iterdir():
+            if path.is_file():
+                zf.write(path, f"assets/{path.name}")
+    return buf.getvalue()
+
+
 def import_board(data: dict[str, Any]) -> str:
     import base64
     board = data["board"]
@@ -162,6 +175,33 @@ def import_board(data: dict[str, Any]) -> str:
         dest = base / filename
         _check_containment(dest, base)
         dest.write_bytes(base64.b64decode(b64data))
+    return slug
+
+
+def import_board_zip(data: bytes) -> str:
+    import io
+    import zipfile
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile as e:
+        raise ValueError(f"Invalid zip file: {e}") from e
+    with zf:
+        names = zf.namelist()
+        if "board.json" not in names:
+            raise ValueError("Missing board.json in zip")
+        board = json.loads(zf.read("board.json"))
+        slug = board.get("slug", "")
+        validate_slug(slug)
+        board_directory(slug).mkdir(parents=True, exist_ok=False)
+        assets_directory(slug).mkdir()
+        board_json_path(slug).write_text(json.dumps(board, indent=2))
+        base = assets_directory(slug)
+        for name in names:
+            if name.startswith("assets/") and not name.endswith("/"):
+                filename = Path(name).name
+                dest = base / filename
+                _check_containment(dest, base)
+                dest.write_bytes(zf.read(name))
     return slug
 
 

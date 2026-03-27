@@ -240,12 +240,11 @@ async def admin_export_board(slug: str, request: Request) -> Response:
     _require_admin(request)
     if not storage.board_exists(slug):
         raise HTTPException(status_code=404, detail="Board not found")
-    import json
-    data = storage.export_board(slug)
+    data = storage.export_board_zip(slug)
     return Response(
-        content=json.dumps(data, indent=2),
-        media_type="application/json",
-        headers={"Content-Disposition": f'attachment; filename="{slug}.json"'},
+        content=data,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{slug}.zip"'},
     )
 
 
@@ -254,15 +253,24 @@ async def admin_import_board(request: Request) -> dict[str, str]:
     _require_admin(request)
     import json
     body = await request.body()
-    try:
-        data = json.loads(body)
-    except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
-    if "board" not in data or "slug" not in data["board"]:
-        raise HTTPException(status_code=400, detail="Missing board data")
-    if storage.board_exists(data["board"]["slug"]):
-        raise HTTPException(status_code=409, detail="Board already exists")
-    slug = storage.import_board(data)
+    # Detect format: PK magic bytes = zip, else JSON
+    if body[:2] == b"PK":
+        try:
+            slug = storage.import_board_zip(body)
+        except FileExistsError:
+            raise HTTPException(status_code=409, detail="Board already exists")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+    else:
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid JSON")
+        if "board" not in data or "slug" not in data["board"]:
+            raise HTTPException(status_code=400, detail="Missing board data")
+        if storage.board_exists(data["board"]["slug"]):
+            raise HTTPException(status_code=409, detail="Board already exists")
+        slug = storage.import_board(data)
     return {"status": "ok", "slug": slug}
 
 
