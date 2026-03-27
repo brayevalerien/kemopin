@@ -458,6 +458,7 @@ function renderBoards() {
                 <span class="size-bar"><span class="size-bar-fill ${barClass}" style="width:${pct}%"></span></span>
             </td>
             <td class="actions">
+                <button class="btn-small btn-ghost" onclick="cleanupBoard('${b.slug}')">Cleanup</button>
                 <button class="btn-small btn-ghost" onclick="startRename('${b.slug}')">Rename</button>
                 <button class="btn-small btn-ghost" onclick="exportBoard('${b.slug}')">Export</button>
                 <button class="btn-small btn-danger" onclick="startDelete('${b.slug}')">Delete</button>
@@ -529,6 +530,14 @@ document.getElementById('delete-confirm').addEventListener('click', async () => 
         await loadBoards();
     }
 });
+
+// Cleanup
+window.cleanupBoard = async (slug) => {
+    const res = await fetch(`${API}/boards/${slug}/cleanup`, { method: 'POST', headers: headers() });
+    if (!res.ok) return;
+    const data = await res.json();
+    toast(data.deleted === 0 ? 'No orphaned assets found' : `Cleaned up ${data.deleted} orphaned asset${data.deleted !== 1 ? 's' : ''}`);
+};
 
 // Export
 window.exportBoard = async (slug) => {
