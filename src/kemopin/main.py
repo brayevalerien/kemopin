@@ -225,6 +225,16 @@ async def admin_rename_board(slug: str, body: RenameRequest, request: Request) -
     return {"status": "ok"}
 
 
+@app.post("/api/admin/boards/{slug}/cleanup")
+async def admin_cleanup_board(slug: str, request: Request) -> dict[str, Any]:
+    _require_admin(request)
+    if not storage.board_exists(slug):
+        raise HTTPException(status_code=404, detail="Board not found")
+    board = storage.read_board(slug)
+    deleted = storage.delete_orphaned_assets(slug, board)
+    return {"status": "ok", "deleted": deleted}
+
+
 @app.get("/api/admin/boards/{slug}/export")
 async def admin_export_board(slug: str, request: Request) -> Response:
     _require_admin(request)

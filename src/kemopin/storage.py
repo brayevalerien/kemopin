@@ -76,15 +76,18 @@ def store_asset(slug: str, data: bytes, extension: str) -> str:
     return filename
 
 
-def delete_orphaned_assets(slug: str, board: dict[str, Any]) -> None:
+def delete_orphaned_assets(slug: str, board: dict[str, Any]) -> int:
     referenced = {
         Path(el["src"]).name
         for el in board.get("elements", [])
         if el.get("type") == "image" and "src" in el
     }
+    deleted = 0
     for path in assets_directory(slug).iterdir():
         if path.is_file() and path.name not in referenced:
             path.unlink()
+            deleted += 1
+    return deleted
 
 
 def get_asset_path(slug: str, filename: str) -> Path | None:
