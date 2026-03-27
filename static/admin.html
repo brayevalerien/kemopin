@@ -439,7 +439,8 @@ loginForm.addEventListener('submit', async (e) => {
     showDashboard();
 });
 
-document.getElementById('logout-btn').addEventListener('click', () => {
+document.getElementById('logout-btn').addEventListener('click', async () => {
+    await fetch(`${API}/logout`, { method: 'POST', headers: headers() });
     state.token = '';
     sessionStorage.removeItem('admin_token');
     loginPage.style.display = '';
@@ -574,7 +575,11 @@ const bulkDeleteModal = document.getElementById('bulk-delete-modal');
 
 window.startBulkDelete = () => {
     const list = document.getElementById('bulk-delete-list');
-    list.innerHTML = [...state.selected].map(s => `<li>${s}</li>`).join('');
+    list.replaceChildren(...[...state.selected].map(s => {
+        const li = document.createElement('li');
+        li.textContent = s;
+        return li;
+    }));
     bulkDeleteModal.classList.add('visible');
 };
 

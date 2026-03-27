@@ -167,12 +167,21 @@ class AdminLoginRequest(BaseModel):
 
 
 @app.post("/api/admin/login")
-async def admin_login(body: AdminLoginRequest) -> dict[str, str]:
+@limiter.limit("10/minute")
+async def admin_login(body: AdminLoginRequest, request: Request) -> dict[str, str]:
     if not hmac.compare_digest(body.password, config.ADMIN_PASSWORD):
         raise HTTPException(status_code=401, detail="Wrong password")
     token = secrets.token_hex(32)
     _admin_tokens.add(token)
     return {"token": token}
+
+
+@app.post("/api/admin/logout")
+async def admin_logout(request: Request) -> dict[str, str]:
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        _admin_tokens.discard(auth[7:])
+    return {"status": "ok"}
 
 
 @app.post("/api/admin/boards/create")
