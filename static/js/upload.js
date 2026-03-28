@@ -3,6 +3,7 @@ import { generateId, toast } from "./utils.js";
 import { addImageNode, reorderElements } from "./elements.js";
 import { pushHistory } from "./history.js";
 import { updateBoardSize } from "./boardsize.js";
+import { snapToGrid } from "./constants.js";
 
 var MAX_DIMENSION = 2048;
 
@@ -74,8 +75,8 @@ export async function uploadAndAddImage(file) {
         var scale = Math.min(viewW * 0.8 / img.naturalWidth, viewH * 0.8 / img.naturalHeight);
         var w = img.naturalWidth  * scale;
         var h = img.naturalHeight * scale;
-        var x = -state.stage.x() / state.stage.scaleX() + viewW / 2 - w / 2;
-        var y = -state.stage.y() / state.stage.scaleY() + viewH / 2 - h / 2;
+        var x = snapToGrid(-state.stage.x() / state.stage.scaleX() + viewW / 2 - w / 2);
+        var y = snapToGrid(-state.stage.y() / state.stage.scaleY() + viewH / 2 - h / 2);
 
         state.imageCache[result.url] = img;
         var node = addImageNode({ id: generateId(), x, y, width: w, height: h, src: result.url }, img);
