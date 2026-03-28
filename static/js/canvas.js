@@ -2,7 +2,7 @@ import { state } from "./state.js";
 import { TEXT_COLORS } from "./constants.js";
 import { serializeElement } from "./serialize.js";
 import { pushHistory, undo, redo } from "./history.js";
-import { createTextNode, duplicateFrom, fitToView } from "./elements.js";
+import { createTextNode, duplicateFrom, fitToView, bringForward, sendBackward } from "./elements.js";
 import { openFilePicker, uploadAndAddImage, fetchAndUploadFromUrl } from "./upload.js";
 import { performSave } from "./save.js";
 import { toast } from "./utils.js";
@@ -235,6 +235,8 @@ function setupKeyboard() {
         if (e.key === "h") { overlay.classList.toggle("visible"); return; }
         if (e.key === "Escape") { overlay.classList.remove("visible"); return; }
         if (e.key === "o") { openFilePicker(); return; }
+        if (ctrl && e.key === "ArrowUp")   { e.preventDefault(); if (selected) bringForward(selected); return; }
+        if (ctrl && e.key === "ArrowDown") { e.preventDefault(); if (selected) sendBackward(selected); return; }
 
         if (e.key === "c" && !ctrl && selected instanceof Konva.Text) {
             var ci = TEXT_COLORS.indexOf(selected.fill());
