@@ -1,5 +1,5 @@
 import { state } from "./state.js";
-import { GRID_SIZE } from "./constants.js";
+import { GRID_SIZE, snapToGrid } from "./constants.js";
 import { generateId } from "./utils.js";
 // Note: history.js also imports from here — safe circular
 // because all cross-cycle calls happen inside function bodies, never at module eval time.
@@ -176,13 +176,13 @@ export function duplicateFrom(data, dx, dy) {
         var img = state.imageCache[data.src];
         if (!img) return;
         newNode = addImageNode({
-            id: generateId(), x: data.x + dx, y: data.y + dy,
+            id: generateId(), x: snapToGrid(data.x + dx), y: snapToGrid(data.y + dy),
             width: data.width, height: data.height,
             rotation: data.rotation, src: data.src,
         }, img);
         reorderElements();
     } else if (data.type === "text") {
-        newNode = createTextNode(data.x + dx, data.y + dy, data.content, data.fontSize, generateId(), data.width, data.rotation, data.fill, data.align);
+        newNode = createTextNode(snapToGrid(data.x + dx), snapToGrid(data.y + dy), data.content, data.fontSize, generateId(), data.width, data.rotation, data.fill, data.align);
     }
     if (newNode) { state.transformer.nodes([newNode]); state.layer.batchDraw(); pushHistory(); }
 }

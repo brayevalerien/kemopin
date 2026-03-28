@@ -1,5 +1,5 @@
 import { state } from "./state.js";
-import { TEXT_COLORS } from "./constants.js";
+import { TEXT_COLORS, snapToGrid } from "./constants.js";
 import { serializeElement } from "./serialize.js";
 import { pushHistory, undo, redo } from "./history.js";
 import { createTextNode, duplicateFrom, fitToView, bringForward, sendBackward } from "./elements.js";
@@ -67,7 +67,7 @@ export function setupCanvas() {
     state.stage.on("dblclick dbltap", function (e) {
         if (e.target !== state.stage) return;
         var p = state.stage.getRelativePointerPosition();
-        createTextNode(p.x, p.y, "", 16);
+        createTextNode(snapToGrid(p.x), snapToGrid(p.y), "", 16);
     });
 
     window.addEventListener("resize", function () {
@@ -177,8 +177,8 @@ function setupPaste() {
                     var el = data.element;
                     var viewW = state.stage.width()  / state.stage.scaleX();
                     var viewH = state.stage.height() / state.stage.scaleY();
-                    var cx = -state.stage.x() / state.stage.scaleX() + viewW / 2;
-                    var cy = -state.stage.y() / state.stage.scaleY() + viewH / 2;
+                    var cx = snapToGrid(-state.stage.x() / state.stage.scaleX() + viewW / 2);
+                    var cy = snapToGrid(-state.stage.y() / state.stage.scaleY() + viewH / 2);
                     var elH = el.height || 50;
                     state.pasteCount++;
                     var offset = state.pasteCount * 20;
