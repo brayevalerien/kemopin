@@ -12,6 +12,34 @@ export function reorderElements() {
     state.transformer.moveToTop();
 }
 
+export function bringForward(node) {
+    var children = state.layer.children;
+    var idx = children.indexOf(node);
+    if (idx < children.length - 1) {
+        var above = children[idx + 1];
+        if ((node instanceof Konva.Image && above instanceof Konva.Image) ||
+            (node instanceof Konva.Text  && above instanceof Konva.Text)) {
+            node.moveUp();
+            state.layer.batchDraw();
+            pushHistory();
+        }
+    }
+}
+
+export function sendBackward(node) {
+    var children = state.layer.children;
+    var idx = children.indexOf(node);
+    if (idx > 0) {
+        var below = children[idx - 1];
+        if ((node instanceof Konva.Image && below instanceof Konva.Image) ||
+            (node instanceof Konva.Text  && below instanceof Konva.Text)) {
+            node.moveDown();
+            state.layer.batchDraw();
+            pushHistory();
+        }
+    }
+}
+
 export function makeSelectable(node) {
     node.on("click tap", function (e) {
         e.cancelBubble = true;
